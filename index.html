@@ -1,0 +1,3560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0A192F">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="DealCart">
+  <meta name="description" content="DealCart - Shop Smart • Save More. Premium Deals on Fashion, Puja Items, Footwear and More.">
+  <title>DealCart | Shop Smart • Save More</title>
+
+  <!-- PWA Web Manifest (Inline Blob Injection) -->
+  <link rel="manifest" id="manifestPlaceholder">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230A192F'/%3E%3Cpath d='M25 32 L35 70 L75 70 L82 32 Z' fill='none' stroke='%23D4AF37' stroke-width='6' stroke-linejoin='round'/%3E%3Ccircle cx='40' cy='78' r='5' fill='%23D4AF37'/%3E%3Ccircle cx='70' cy='78' r='5' fill='%23D4AF37'/%3E%3Cpath d='M30 46 L77 46' stroke='%23ffffff' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              navy: '#0A192F',
+              navylight: '#172A45',
+              gold: '#D4AF37',
+              goldhover: '#B59428',
+              surface: '#FFFFFF',
+              bg: '#F8FAFC',
+              slate: '#64748B',
+              dark: '#0F172A',
+              border: '#E2E8F0',
+              success: '#10B981',
+              danger: '#EF4444',
+              warning: '#F59E0B'
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Supabase CDN Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Chart.js for Admin Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* Mobile-first base ergonomics */
+    * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+    body {
+      background-color: #F8FAFC;
+      color: #0F172A;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      padding-bottom: env(safe-area-inset-bottom, 80px);
+    }
+    /* Hide scrollbars for pill bars & sliders */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* Smooth Transitions */
+    .view-transition { transition: opacity 0.25s ease-in-out, transform 0.25s ease-in-out; }
+    .glass-nav {
+      background: rgba(10, 25, 47, 0.96);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .gold-gradient {
+      background: linear-gradient(135deg, #DFBA49 0%, #D4AF37 50%, #A88622 100%);
+    }
+    .badge-pulse {
+      animation: pulseGlow 2s infinite;
+    }
+    @keyframes pulseGlow {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.05); }
+    }
+  </style>
+</head>
+<body class="bg-brand-bg text-brand-dark antialiased selection:bg-brand-gold selection:text-white pb-20 md:pb-6">
+
+  <!-- ==================== SPLASH SCREEN ==================== -->
+  <div id="splashScreen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-brand-navy text-white transition-opacity duration-500">
+    <div class="relative flex items-center justify-center w-24 h-24 mb-4 rounded-3xl bg-brand-navylight border border-brand-gold/30 shadow-2xl p-4">
+      <svg class="w-14 h-14 text-brand-gold" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+        <rect width="100" height="100" rx="22" fill="#0A192F" stroke="#D4AF37" stroke-width="4"/>
+        <path d="M25 32 L36 70 L76 70 L84 32 Z" stroke="#D4AF37" stroke-width="6" stroke-linejoin="round"/>
+        <circle cx="42" cy="78" r="5" fill="#D4AF37"/>
+        <circle cx="70" cy="78" r="5" fill="#D4AF37"/>
+        <path d="M30 46 L80 46" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="text-3xl font-black tracking-wider text-white">DEAL<span class="text-brand-gold">CART</span></div>
+    <div class="text-xs uppercase tracking-widest text-slate-300 mt-1 font-semibold">Shop Smart • Save More</div>
+    <div class="mt-8 flex items-center space-x-2 text-xs text-brand-gold">
+      <span class="inline-block w-2.5 h-2.5 bg-brand-gold rounded-full animate-ping"></span>
+      <span>Securing & Loading Store...</span>
+    </div>
+  </div>
+
+  <!-- ==================== APP CONTAINER ==================== -->
+  <div id="app" class="min-h-screen flex flex-col">
+
+    <!-- ==================== HEADER ==================== -->
+    <header class="sticky top-0 z-40 bg-brand-navy text-white shadow-md border-b border-brand-navylight/60">
+      <!-- Top Bar -->
+      <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between gap-3">
+        <!-- Brand Logo -->
+        <div onclick="navigateTo('home')" class="cursor-pointer flex items-center gap-2 select-none group">
+          <div class="w-9 h-9 rounded-xl bg-brand-navylight border border-brand-gold/40 flex items-center justify-center p-1.5 shadow-sm">
+            <svg class="w-full h-full text-brand-gold" viewBox="0 0 100 100" fill="none">
+              <path d="M22 30 L34 68 L76 68 L84 30 Z" stroke="currentColor" stroke-width="8" stroke-linejoin="round"/>
+              <circle cx="40" cy="78" r="6" fill="currentColor"/>
+              <circle cx="70" cy="78" r="6" fill="currentColor"/>
+              <path d="M28 44 L80 44" stroke="#FFF" stroke-width="5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <div class="text-xl font-black tracking-tight leading-none text-white">
+              DEAL<span class="text-brand-gold">CART</span>
+            </div>
+            <div class="text-[9px] tracking-widest text-slate-300 font-bold uppercase">Shop Smart • Save More</div>
+          </div>
+        </div>
+
+        <!-- Global Search Bar (Desktop / Tablet) -->
+        <div class="hidden sm:flex flex-1 max-w-lg mx-3 relative">
+          <input 
+            type="text" 
+            id="desktopSearchInput" 
+            placeholder="Search by name, category, SKU, keywords..." 
+            oninput="handleSearchInput(this.value)"
+            class="w-full bg-white text-brand-dark text-sm rounded-full pl-10 pr-10 py-2 border border-brand-border focus:ring-2 focus:ring-brand-gold focus:outline-none transition shadow-inner"
+          >
+          <span class="absolute left-3.5 top-2.5 text-slate-400">🔍</span>
+          <button onclick="clearSearch()" id="desktopSearchClear" class="hidden absolute right-3.5 top-2 text-slate-400 hover:text-slate-600 font-bold text-sm">✕</button>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="flex items-center gap-1.5 md:gap-3">
+          <!-- Wishlist -->
+          <button onclick="navigateTo('wishlist')" class="relative p-2 text-slate-200 hover:text-brand-gold rounded-full hover:bg-brand-navylight transition" title="Wishlist">
+            <span class="text-lg">❤️</span>
+            <span id="wishlistCountBadge" class="hidden absolute -top-1 -right-1 bg-brand-gold text-brand-navy font-black text-[10px] w-4 h-4 rounded-full items-center justify-center">0</span>
+          </button>
+
+          <!-- Shopping Bag -->
+          <button onclick="navigateTo('bag')" class="relative flex items-center gap-1.5 bg-brand-gold hover:bg-brand-goldhover text-brand-navy font-bold px-3 py-1.5 rounded-full text-xs md:text-sm transition shadow" title="Shopping Bag">
+            <span>🛒</span>
+            <span class="hidden md:inline">Bag</span>
+            <span id="bagCountBadge" class="bg-brand-navy text-white text-[10px] px-1.5 py-0.5 rounded-full font-black">0</span>
+          </button>
+
+          <!-- Account -->
+          <button onclick="navigateTo('account')" class="p-2 text-slate-200 hover:text-brand-gold rounded-full hover:bg-brand-navylight transition hidden sm:inline-flex" title="Customer Account">
+            <span class="text-lg">👤</span>
+          </button>
+
+          <!-- Admin Portal Trigger (Discreet & Protected) -->
+          <button onclick="openAdminAuthModal()" class="p-2 text-slate-400 hover:text-white rounded-full hover:bg-brand-navylight transition" title="Owner / Staff Access">
+            <span class="text-sm">🔐</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mobile Search Field -->
+      <div class="sm:hidden px-4 pb-2.5">
+        <div class="relative w-full">
+          <input 
+            type="text" 
+            id="mobileSearchInput" 
+            placeholder="Search products, footwear, sarees..." 
+            oninput="handleSearchInput(this.value)"
+            class="w-full bg-white text-brand-dark text-xs rounded-full pl-9 pr-8 py-2 border border-brand-border focus:ring-2 focus:ring-brand-gold focus:outline-none"
+          >
+          <span class="absolute left-3 top-2 text-slate-400 text-xs">🔍</span>
+          <button onclick="clearSearch()" id="mobileSearchClear" class="hidden absolute right-3 top-2 text-slate-400 text-xs font-bold">✕</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- ==================== MAIN CONTENT DISPLAY (VIEWS) ==================== -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-6">
+
+      <!-- ================= 1. CUSTOMER HOME VIEW ================= -->
+      <section id="view-home" class="space-y-6">
+        
+        <!-- Hero Banner Slider -->
+        <div class="relative w-full overflow-hidden rounded-2xl shadow-lg bg-brand-navy border border-brand-gold/30">
+          <div id="bannerCarousel" class="flex transition-transform duration-500 ease-out">
+            <!-- Dynamic Banners injected via JS -->
+          </div>
+          <!-- Banner Nav Dots -->
+          <div id="bannerDots" class="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5 z-10"></div>
+        </div>
+
+        <!-- Expandable Category Bar -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-extrabold uppercase tracking-wider text-slate-700">Categories</h3>
+            <span class="text-xs text-brand-navy font-bold hover:underline cursor-pointer" onclick="navigateTo('categories')">View All</span>
+          </div>
+          <div id="homeCategoriesBar" class="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+            <!-- Injected via JS -->
+          </div>
+        </div>
+
+        <!-- Value Badges -->
+        <div class="grid grid-cols-3 gap-2 py-2 px-1 text-center bg-white rounded-xl border border-brand-border shadow-sm text-[11px] font-semibold text-slate-700">
+          <div class="flex flex-col items-center justify-center p-1">
+            <span class="text-base text-brand-gold">⚡</span>
+            <span>Fast Shipping</span>
+          </div>
+          <div class="flex flex-col items-center justify-center p-1 border-x border-slate-100">
+            <span class="text-base text-green-600">🛡️</span>
+            <span>Genuine Quality</span>
+          </div>
+          <div class="flex flex-col items-center justify-center p-1">
+            <span class="text-base text-blue-600">💬</span>
+            <span>WhatsApp Support</span>
+          </div>
+        </div>
+
+        <!-- Sections: Trending & Best Sellers -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg md:text-xl font-black text-brand-navy flex items-center gap-2">
+                🔥 Trending Deals
+              </h2>
+              <p class="text-xs text-slate-500">Handpicked value drops for today</p>
+            </div>
+            <button onclick="filterBySection('trending')" class="text-xs font-bold text-brand-gold hover:underline">Explore More &rarr;</button>
+          </div>
+          <div id="trendingGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"></div>
+        </div>
+
+        <!-- Section: Best Sellers -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg md:text-xl font-black text-brand-navy flex items-center gap-2">
+                ⭐ Best Sellers
+              </h2>
+              <p class="text-xs text-slate-500">Most loved by DealCart shoppers</p>
+            </div>
+          </div>
+          <div id="bestSellerGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"></div>
+        </div>
+
+        <!-- Section: New Arrivals & Puja Collection -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-lg md:text-xl font-black text-brand-navy flex items-center gap-2">
+                ✨ New Arrivals & Special Collections
+              </h2>
+              <p class="text-xs text-slate-500">Fresh factory styles and sacred puja essentials</p>
+            </div>
+          </div>
+          <div id="newArrivalsGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"></div>
+        </div>
+
+      </section>
+
+      <!-- ================= 2. SEARCH & FILTER VIEW ================= -->
+      <section id="view-search" class="hidden space-y-4">
+        <!-- Filter and Sort Controls -->
+        <div class="bg-white p-3.5 rounded-2xl border border-brand-border shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-bold text-slate-600">Filters:</span>
+            <!-- Category select -->
+            <select id="filterCategory" onchange="applyFiltersAndSort()" class="text-xs bg-slate-50 border border-brand-border rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+              <option value="ALL">All Categories</option>
+            </select>
+            <!-- Availability filter -->
+            <select id="filterAvailability" onchange="applyFiltersAndSort()" class="text-xs bg-slate-50 border border-brand-border rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+              <option value="ALL">All Stock</option>
+              <option value="IN_STOCK">In Stock Only</option>
+              <option value="COD">COD Available</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold text-slate-600">Sort By:</span>
+            <select id="sortBy" onchange="applyFiltersAndSort()" class="text-xs bg-slate-50 border border-brand-border rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+              <option value="POPULAR">Most Popular</option>
+              <option value="NEWEST">Newest First</option>
+              <option value="PRICE_LOW">Price: Low to High</option>
+              <option value="PRICE_HIGH">Price: High to Low</option>
+              <option value="DISCOUNT">Best Discount</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Result Stats -->
+        <div class="flex items-center justify-between px-1">
+          <h2 id="searchResultsTitle" class="text-sm font-bold text-slate-800">Showing all products</h2>
+          <span id="searchResultsCount" class="text-xs text-slate-500 font-semibold">0 items</span>
+        </div>
+
+        <!-- Products Grid Container -->
+        <div id="searchGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"></div>
+
+        <!-- Empty Results State -->
+        <div id="searchEmptyState" class="hidden text-center py-16 bg-white rounded-2xl border border-dashed border-slate-300 p-6">
+          <div class="text-4xl mb-2">🔍</div>
+          <h3 class="text-base font-bold text-slate-700">No products found</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Try adjusting your keywords, selecting a different category, or removing filters.</p>
+          <button onclick="resetFilters()" class="mt-4 bg-brand-navy text-white text-xs font-bold px-4 py-2 rounded-xl">Clear All Filters</button>
+        </div>
+      </section>
+
+      <!-- ================= 3. CATEGORIES VIEW ================= -->
+      <section id="view-categories" class="hidden space-y-4">
+        <h2 class="text-lg font-black text-brand-navy">All Shopping Categories</h2>
+        <div id="fullCategoriesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <!-- Populated via JS -->
+        </div>
+      </section>
+
+      <!-- ================= 4. WISHLIST VIEW ================= -->
+      <section id="view-wishlist" class="hidden space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-black text-brand-navy">My Wishlist ❤️</h2>
+          <span id="wishlistPageCount" class="text-xs text-slate-500 font-bold">0 items</span>
+        </div>
+        <div id="wishlistGrid" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4"></div>
+        <div id="wishlistEmptyState" class="hidden text-center py-16 bg-white rounded-2xl border border-slate-200 p-6">
+          <div class="text-4xl mb-2">💔</div>
+          <h3 class="text-base font-bold text-slate-700">Your wishlist is empty</h3>
+          <p class="text-xs text-slate-500 mt-1">Tap the heart on any product to save your favorite picks!</p>
+          <button onclick="navigateTo('home')" class="mt-4 bg-brand-navy text-white text-xs font-bold px-4 py-2 rounded-xl">Explore Deals</button>
+        </div>
+      </section>
+
+      <!-- ================= 5. SHOPPING BAG VIEW ================= -->
+      <section id="view-bag" class="hidden space-y-4">
+        <h2 class="text-xl font-black text-brand-navy flex items-center gap-2">
+          <span>🛒</span> Shopping Bag
+        </h2>
+
+        <div id="bagNotEmptyContent" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Items List -->
+          <div class="lg:col-span-2 space-y-3" id="bagItemsContainer">
+            <!-- Injected via JS -->
+          </div>
+
+          <!-- Order Summary Card -->
+          <div class="bg-white p-4 md:p-5 rounded-2xl border border-brand-border shadow-sm h-fit space-y-4">
+            <h3 class="text-sm font-extrabold text-brand-navy uppercase tracking-wider border-b pb-2">Price Breakdown</h3>
+            
+            <!-- Coupon Input -->
+            <div class="space-y-1">
+              <label class="text-[11px] font-bold text-slate-600">Have a Promo Coupon?</label>
+              <div class="flex gap-2">
+                <input type="text" id="couponCodeInput" placeholder="Enter coupon" class="flex-1 uppercase text-xs p-2 rounded-lg border border-brand-border font-bold">
+                <button onclick="applyCoupon()" class="bg-brand-navy hover:bg-brand-navylight text-brand-gold text-xs font-bold px-3 py-2 rounded-lg transition">Apply</button>
+              </div>
+              <p id="couponFeedback" class="text-[10px] font-bold hidden"></p>
+            </div>
+
+            <!-- Price Calculations -->
+            <div class="space-y-2 text-xs font-semibold text-slate-600 border-t pt-3">
+              <div class="flex justify-between">
+                <span>Total MRP Items</span>
+                <span id="bagMrpTotal">₹0</span>
+              </div>
+              <div class="flex justify-between text-green-700 font-bold">
+                <span>Discount on MRP</span>
+                <span id="bagDiscountTotal">-₹0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Subtotal</span>
+                <span id="bagSubtotal" class="font-bold text-slate-800">₹0</span>
+              </div>
+              <div class="flex justify-between">
+                <span>Delivery Charges</span>
+                <span id="bagDeliveryCharge" class="text-green-600 font-bold">FREE</span>
+              </div>
+              <div id="couponDiscountRow" class="hidden justify-between text-brand-gold font-bold">
+                <span>Coupon Applied</span>
+                <span id="bagCouponDiscount">-₹0</span>
+              </div>
+              <div class="flex justify-between text-sm md:text-base font-black text-brand-navy border-t pt-2">
+                <span>Total Amount</span>
+                <span id="bagGrandTotal" class="text-brand-navy">₹0</span>
+              </div>
+            </div>
+
+            <!-- Checkout Button -->
+            <button onclick="proceedToCheckout()" class="w-full gold-gradient hover:opacity-95 text-brand-navy py-3 rounded-xl font-black text-sm uppercase tracking-wider shadow-md transition flex items-center justify-center gap-2">
+              <span>Proceed to Checkout</span>
+              <span>&rarr;</span>
+            </button>
+
+            <!-- Safe Shopping Guarantee -->
+            <div class="text-[10px] text-center text-slate-400 font-medium">
+              🔒 Safe & Encrypted Payments • 100% Genuine Products
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty Bag State -->
+        <div id="bagEmptyState" class="hidden text-center py-16 bg-white rounded-2xl border border-slate-200 p-6">
+          <div class="text-5xl mb-3">🛍️</div>
+          <h3 class="text-lg font-bold text-slate-800">Your Shopping Bag is empty</h3>
+          <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Looks like you haven't added anything yet. Discover our best deals and fill your bag!</p>
+          <button onclick="navigateTo('home')" class="mt-4 bg-brand-navy text-brand-gold text-xs font-bold px-6 py-2.5 rounded-xl shadow">Start Shopping</button>
+        </div>
+      </section>
+
+      <!-- ================= 6. CHECKOUT VIEW ================= -->
+      <section id="view-checkout" class="hidden space-y-4 max-w-3xl mx-auto">
+        <div class="flex items-center gap-2">
+          <button onclick="navigateTo('bag')" class="p-1.5 bg-slate-200 rounded-lg text-xs font-bold">← Back</button>
+          <h2 class="text-xl font-black text-brand-navy">Complete Your Order</h2>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Delivery Address Form -->
+          <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-3">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-brand-navy border-b pb-1">1. Delivery Address</h3>
+            
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Full Name *</label>
+              <input type="text" id="shipName" placeholder="Recipient's Name" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold">
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">10-Digit Mobile Number *</label>
+              <input type="tel" id="shipPhone" maxlength="10" placeholder="e.g. 9876543210" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">Pincode *</label>
+                <input type="text" id="shipPincode" maxlength="6" placeholder="6-digit PIN" oninput="checkPincodeService(this.value)" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold">
+              </div>
+              <div>
+                <label class="block text-[11px] font-bold text-slate-600 mb-1">City *</label>
+                <input type="text" id="shipCity" placeholder="City / District" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold">
+              </div>
+            </div>
+
+            <div id="pincodeStatusBadge" class="text-[10px] font-bold text-green-700 hidden">✓ Pincode is serviceable!</div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">House / Flat / Building No. *</label>
+              <input type="text" id="shipHouse" placeholder="House/Flat number, Building name" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold">
+            </div>
+
+            <div>
+              <label class="block text-[11px] font-bold text-slate-600 mb-1">Street / Colony / Landmark *</label>
+              <textarea id="shipStreet" rows="2" placeholder="Street, Sector, Area & Landmark" class="w-full text-xs p-2.5 rounded-lg border border-brand-border focus:ring-1 focus:ring-brand-gold"></textarea>
+            </div>
+          </div>
+
+          <!-- Payment Method Choice -->
+          <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-4">
+            <h3 class="text-xs font-extrabold uppercase tracking-wider text-brand-navy border-b pb-1">2. Payment Method</h3>
+
+            <div class="space-y-2">
+              <!-- UPI Option -->
+              <label class="flex items-center gap-3 p-3 rounded-xl border border-blue-200 bg-blue-50/50 cursor-pointer">
+                <input type="radio" name="payOption" value="UPI" checked onchange="togglePayMode('UPI')" class="accent-brand-navy">
+                <div class="flex-1">
+                  <div class="text-xs font-black text-brand-navy flex items-center justify-between">
+                    <span>⚡ Instant UPI / QR</span>
+                    <span class="text-[10px] bg-green-100 text-green-800 px-1.5 py-0.5 rounded">Fastest</span>
+                  </div>
+                  <div class="text-[11px] text-slate-500">GooglePay, PhonePe, Paytm or Any UPI App</div>
+                </div>
+              </label>
+
+              <!-- COD Option -->
+              <label id="codSelectLabel" class="flex items-center gap-3 p-3 rounded-xl border border-brand-border bg-slate-50 cursor-pointer">
+                <input type="radio" name="payOption" value="COD" onchange="togglePayMode('COD')" class="accent-brand-navy">
+                <div class="flex-1">
+                  <div class="text-xs font-black text-slate-800">💵 Cash on Delivery</div>
+                  <div class="text-[11px] text-slate-500">Pay cash directly when order reaches your door</div>
+                </div>
+              </label>
+              <div id="codDisabledWarning" class="hidden text-[10px] text-amber-700 bg-amber-50 p-2 rounded-lg font-medium">
+                ⚠️ Cash on delivery is currently turned off for this item or disabled by store policy.
+              </div>
+            </div>
+
+            <!-- Dynamic UPI QR Block -->
+            <div id="checkoutUpiDetails" class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center space-y-2">
+              <div class="text-xs font-bold text-slate-700">Scan QR Code to Pay:</div>
+              <img id="checkoutQrImage" src="" alt="UPI QR" class="w-36 h-36 mx-auto bg-white p-1 rounded-lg border border-slate-300 shadow-sm">
+              <div class="text-[11px] text-slate-600 font-mono">UPI ID: <span id="checkoutUpiIdText" class="font-bold text-brand-navy">dealcart@upi</span></div>
+              
+              <a id="checkoutDeepLink" href="#" class="inline-block bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition shadow-sm">
+                📲 Pay via UPI App Direct
+              </a>
+
+              <div class="text-left pt-2 border-t border-slate-200">
+                <label class="block text-[10px] font-bold text-slate-600 mb-0.5">Enter 12-Digit UPI Ref / UTR No. *</label>
+                <input type="text" id="orderUtrInput" maxlength="16" placeholder="Enter UTR after payment" class="w-full text-xs p-2 rounded-lg border border-brand-border bg-white font-mono">
+                <p class="text-[9px] text-slate-400 mt-1">* Note: Payments are manually reviewed by DealCart accountants before order processing.</p>
+              </div>
+            </div>
+
+            <!-- Total Final and Submit -->
+            <div class="border-t pt-3 space-y-2">
+              <div class="flex justify-between items-center text-sm font-black text-brand-navy">
+                <span>Payable Amount:</span>
+                <span id="checkoutPayableText" class="text-base text-green-700">₹0</span>
+              </div>
+              <button onclick="submitOrder()" class="w-full bg-brand-navy hover:bg-brand-navylight text-brand-gold py-3 rounded-xl font-black text-sm uppercase tracking-wider shadow-lg transition">
+                Confirm & Place Order ✓
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. CUSTOMER ACCOUNT & ORDER TRACKING ================= -->
+      <section id="view-account" class="hidden space-y-6">
+        <!-- Profile Banner -->
+        <div class="bg-brand-navy text-white p-4 md:p-6 rounded-2xl shadow flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div class="flex items-center gap-3">
+            <div class="w-14 h-14 rounded-full bg-brand-gold text-brand-navy flex items-center justify-center text-2xl font-black">
+              👤
+            </div>
+            <div>
+              <h2 id="custAccountName" class="text-lg font-black">DealCart Customer</h2>
+              <p id="custAccountPhone" class="text-xs text-slate-300 font-mono">Logged in Device</p>
+              <span class="inline-block mt-1 text-[10px] bg-brand-navylight text-brand-gold px-2 py-0.5 rounded-full border border-brand-gold/30">Verified Member</span>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="promptEditCustomerProfile()" class="bg-brand-navylight hover:bg-slate-800 text-xs text-white px-3 py-1.5 rounded-lg border border-slate-700">Edit Info</button>
+            <button onclick="customerLogout()" class="bg-rose-900/60 hover:bg-rose-900 text-xs text-rose-200 px-3 py-1.5 rounded-lg border border-rose-700">Clear Session</button>
+          </div>
+        </div>
+
+        <!-- Account Nav Tabs -->
+        <div class="flex gap-2 border-b border-brand-border pb-1 overflow-x-auto no-scrollbar">
+          <button onclick="switchAccountTab('orders')" id="tabBtnOrders" class="text-xs font-black px-4 py-2 rounded-lg bg-brand-navy text-white">My Orders</button>
+          <button onclick="switchAccountTab('addresses')" id="tabBtnAddresses" class="text-xs font-bold px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Saved Addresses</button>
+          <button onclick="switchAccountTab('support')" id="tabBtnSupport" class="text-xs font-bold px-4 py-2 rounded-lg text-slate-600 hover:bg-slate-100">Help & Support</button>
+        </div>
+
+        <!-- Orders List Container -->
+        <div id="accountOrdersSection" class="space-y-3">
+          <!-- Injected via JS -->
+        </div>
+
+        <!-- Addresses Container -->
+        <div id="accountAddressesSection" class="hidden space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-bold text-slate-700">Delivery Addresses</h3>
+            <button onclick="addNewAddressPrompt()" class="text-xs bg-brand-navy text-white px-3 py-1 rounded-lg">+ Add Address</button>
+          </div>
+          <div id="addressesList" class="grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Help & Support -->
+        <div id="accountSupportSection" class="hidden bg-white p-5 rounded-2xl border border-brand-border space-y-4">
+          <h3 class="text-sm font-bold text-slate-800">DealCart Customer Support</h3>
+          <p class="text-xs text-slate-500">Need help with your order, returns, or delivery updates? We are here for you 24/7.</p>
+          <div class="flex flex-col sm:flex-row gap-3">
+            <a id="supportWhatsAppBtn" href="#" target="_blank" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow">
+              <span>💬</span> Chat on WhatsApp
+            </a>
+            <a id="supportPhoneBtn" href="tel:9650483818" class="flex-1 bg-brand-navy hover:bg-brand-navylight text-brand-gold font-bold text-xs py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow">
+              <span>📞</span> Call Care: +91 9650483818
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 8. ADMIN CONTROL CENTER (AUTHENTICATED) ================= -->
+      <section id="view-admin" class="hidden space-y-6">
+        
+        <!-- Admin Bar -->
+        <div class="bg-brand-navy text-white p-4 rounded-2xl shadow flex flex-col md:flex-row justify-between items-start md:items-center gap-3 border border-brand-gold/30">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-lg">🔐</span>
+              <h2 class="text-lg font-black tracking-wide text-brand-gold">DEALCART SELLER & RESELLER HUB</h2>
+            </div>
+            <p class="text-xs text-slate-300">Management Panel • Role: Master Owner</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openChangePasswordModal()" class="text-xs bg-brand-navylight hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-lg border border-slate-700 font-semibold">Change Password</button>
+            <button onclick="adminLogout()" class="text-xs bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg font-bold">Logout to Store</button>
+          </div>
+        </div>
+
+        <!-- Admin Sub Navigation Tabs -->
+        <div class="flex gap-1.5 overflow-x-auto no-scrollbar border-b border-brand-border pb-2">
+          <button onclick="switchAdminTab('dash')" id="adTab-dash" class="text-xs font-black px-3.5 py-2 rounded-xl bg-brand-navy text-brand-gold whitespace-nowrap">📊 Dashboard</button>
+          <button onclick="switchAdminTab('products')" id="adTab-products" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">📦 Products (<span id="adCountProducts">0</span>)</button>
+          <button onclick="switchAdminTab('bulk')" id="adTab-bulk" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">📥 Bulk CSV Import</button>
+          <button onclick="switchAdminTab('history')" id="adTab-history" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">📜 Upload History</button>
+          <button onclick="switchAdminTab('orders')" id="adTab-orders" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">🛍️ Orders (<span id="adCountOrders">0</span>)</button>
+          <button onclick="switchAdminTab('suppliers')" id="adTab-suppliers" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">🏭 Suppliers</button>
+          <button onclick="switchAdminTab('accounting')" id="adTab-accounting" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">💰 Profit & Expenses</button>
+          <button onclick="switchAdminTab('settings')" id="adTab-settings" class="text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap">⚙️ Settings</button>
+        </div>
+
+        <!-- 8.1 DASHBOARD TAB -->
+        <div id="adminPanel-dash" class="space-y-5">
+          <!-- Stat Cards -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-white p-3.5 rounded-2xl border border-brand-border shadow-sm">
+              <span class="text-[11px] font-bold text-slate-500 uppercase">Total Sales</span>
+              <div id="statTotalSales" class="text-lg md:text-2xl font-black text-brand-navy mt-1">₹0</div>
+              <span class="text-[10px] text-green-600 font-bold">Lifetime revenue</span>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl border border-brand-border shadow-sm">
+              <span class="text-[11px] font-bold text-slate-500 uppercase">Estimated Profit</span>
+              <div id="statTotalProfit" class="text-lg md:text-2xl font-black text-green-700 mt-1">₹0</div>
+              <span class="text-[10px] text-slate-400">After wholesale & shipping</span>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl border border-brand-border shadow-sm">
+              <span class="text-[11px] font-bold text-slate-500 uppercase">Active Orders</span>
+              <div id="statActiveOrders" class="text-lg md:text-2xl font-black text-brand-gold mt-1">0</div>
+              <span class="text-[10px] text-slate-400">To be fulfilled</span>
+            </div>
+            <div class="bg-white p-3.5 rounded-2xl border border-brand-border shadow-sm">
+              <span class="text-[11px] font-bold text-slate-500 uppercase">Supplier Dues</span>
+              <div id="statSupplierDues" class="text-lg md:text-2xl font-black text-rose-600 mt-1">₹0</div>
+              <span class="text-[10px] text-slate-400">Unsettled wholesale</span>
+            </div>
+          </div>
+
+          <!-- Charts Grid -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm">
+              <h3 class="text-xs font-black text-brand-navy uppercase mb-3">7-Day Sales Trend (₹)</h3>
+              <canvas id="salesTrendChart" height="150"></canvas>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm">
+              <h3 class="text-xs font-black text-brand-navy uppercase mb-3">Orders Breakdown by Status</h3>
+              <canvas id="orderStatusChart" height="150"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.2 PRODUCTS MANAGEMENT TAB -->
+        <div id="adminPanel-products" class="hidden space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div class="flex items-center gap-2">
+              <input type="text" id="adProductSearchInput" oninput="renderAdminProductsTable()" placeholder="Search catalog..." class="text-xs p-2 rounded-xl border border-brand-border w-48">
+              <select id="adProductFilterStatus" onchange="renderAdminProductsTable()" class="text-xs p-2 rounded-xl border border-brand-border">
+                <option value="ALL">All Status</option>
+                <option value="PUBLISHED">Published</option>
+                <option value="DRAFT">Draft</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </div>
+            <div class="flex gap-2">
+              <button onclick="openProductEditModal(null)" class="bg-brand-navy hover:bg-brand-navylight text-brand-gold text-xs font-bold px-3 py-2 rounded-xl shadow">
+                + Add Single Product
+              </button>
+            </div>
+          </div>
+
+          <!-- Bulk Selection Actions Bar -->
+          <div id="bulkActionsRow" class="hidden bg-blue-50 border border-blue-200 p-2.5 rounded-xl flex items-center justify-between">
+            <span class="text-xs font-bold text-blue-900"><span id="bulkSelectedCount">0</span> products selected</span>
+            <div class="flex gap-2">
+              <button onclick="bulkChangeStatus('PUBLISHED')" class="text-xs bg-green-600 text-white font-bold px-3 py-1 rounded-lg">Publish</button>
+              <button onclick="bulkChangeStatus('DRAFT')" class="text-xs bg-slate-600 text-white font-bold px-3 py-1 rounded-lg">Unpublish (Draft)</button>
+              <button onclick="bulkChangeStatus('ARCHIVED')" class="text-xs bg-amber-600 text-white font-bold px-3 py-1 rounded-lg">Archive</button>
+              <button onclick="bulkDeleteConfirmed()" class="text-xs bg-red-600 text-white font-bold px-3 py-1 rounded-lg">Delete</button>
+            </div>
+          </div>
+
+          <!-- Products Table -->
+          <div class="bg-white rounded-2xl border border-brand-border shadow-sm overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-100 text-slate-600 font-extrabold uppercase border-b border-brand-border text-[10px]">
+                <tr>
+                  <th class="p-3 w-8"><input type="checkbox" id="selectAllProductsCheckbox" onchange="toggleSelectAllProducts(this.checked)"></th>
+                  <th class="p-3">Product</th>
+                  <th class="p-3">SKU</th>
+                  <th class="p-3">Type</th>
+                  <th class="p-3">Selling / Wholesale</th>
+                  <th class="p-3">Stock</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="adProductsTableBody" class="divide-y divide-slate-100 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 8.3 BULK CSV IMPORT TAB -->
+        <div id="adminPanel-bulk" class="hidden space-y-4">
+          <div class="bg-white p-5 rounded-2xl border border-brand-border space-y-4">
+            <div class="border-b pb-3">
+              <h3 class="text-base font-black text-brand-navy">Bulk Product Importer (CSV / Excel format)</h3>
+              <p class="text-xs text-slate-500">Upload 100, 500 or more products safely. Duplicates are flagged and skipped by default to preserve existing data.</p>
+            </div>
+
+            <!-- Upload Mode Selector -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <label class="p-3.5 border-2 border-brand-navy bg-blue-50/40 rounded-xl cursor-pointer">
+                <input type="radio" name="importMode" value="SKIP_REVIEW" checked class="accent-brand-navy">
+                <span class="text-xs font-black text-brand-navy ml-2">MODE 1: Skip Review & Quick Upload</span>
+                <p class="text-[11px] text-slate-500 mt-1 ml-5">Immediately uploads all rows as <strong class="text-amber-700">DRAFT (HIDDEN)</strong>. Safe for 500+ items to review later.</p>
+              </label>
+
+              <label class="p-3.5 border border-brand-border rounded-xl cursor-pointer hover:bg-slate-50">
+                <input type="radio" name="importMode" value="REVIEW" class="accent-brand-navy">
+                <span class="text-xs font-black text-slate-800 ml-2">MODE 2: Review & Validate Before Import</span>
+                <p class="text-[11px] text-slate-500 mt-1 ml-5">Preview all rows, view missing images or price warnings, remove unwanted items before saving.</p>
+              </label>
+            </div>
+
+            <!-- CSV Upload File Field -->
+            <div class="p-6 border-2 border-dashed border-slate-300 rounded-2xl text-center bg-slate-50 hover:bg-slate-100 transition cursor-pointer" onclick="$('csvFileInput').click()">
+              <div class="text-3xl mb-1">📄</div>
+              <p class="text-xs font-bold text-slate-700">Click to Select CSV File</p>
+              <p class="text-[10px] text-slate-400">Supports columns: SKU, Product Name, Category, Price, MRP, Wholesale, Image URL, Stock, COD</p>
+              <input type="file" id="csvFileInput" accept=".csv,text/csv" class="hidden" onchange="handleCsvFileSelected(event)">
+            </div>
+
+            <!-- Download Template Button -->
+            <div class="flex justify-between items-center text-xs">
+              <button onclick="downloadSampleCsvTemplate()" class="text-brand-navy font-bold hover:underline">📥 Download Sample CSV Template</button>
+              <span id="csvFileStatus" class="text-slate-500 font-medium">No file chosen</span>
+            </div>
+
+            <!-- Review Stage Container (Used for Mode 2) -->
+            <div id="csvReviewStage" class="hidden space-y-3 border-t pt-4">
+              <div class="flex justify-between items-center">
+                <h4 class="text-xs font-extrabold text-brand-navy uppercase">Pre-Import Data Review (<span id="csvReviewCount">0</span> items)</h4>
+                <button onclick="confirmAndExecuteImport()" class="bg-green-600 hover:bg-green-700 text-white font-bold text-xs px-4 py-2 rounded-xl shadow">Import Approved Items</button>
+              </div>
+              <div class="max-h-72 overflow-y-auto border border-brand-border rounded-xl">
+                <table class="w-full text-left text-xs">
+                  <thead class="bg-slate-100 text-slate-600 font-bold sticky top-0">
+                    <tr>
+                      <th class="p-2">Preview</th>
+                      <th class="p-2">Title</th>
+                      <th class="p-2">SKU</th>
+                      <th class="p-2">Price</th>
+                      <th class="p-2">Wholesale</th>
+                      <th class="p-2">Status / Notes</th>
+                      <th class="p-2">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody id="csvReviewTbody" class="divide-y divide-slate-100"></tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 8.4 BULK UPLOAD HISTORY TAB -->
+        <div id="adminPanel-history" class="hidden space-y-4">
+          <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-3">
+            <h3 class="text-sm font-black text-brand-navy uppercase">Bulk Upload Batches & Audit Log</h3>
+            <div id="bulkHistoryList" class="space-y-2">
+              <!-- Injected via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 8.5 ORDERS MANAGEMENT & RESELLER FULFILLMENT TAB -->
+        <div id="adminPanel-orders" class="hidden space-y-4">
+          <div class="flex justify-between items-center">
+            <div class="flex gap-2">
+              <select id="adOrderFilterStatus" onchange="renderAdminOrdersTable()" class="text-xs p-2 rounded-xl border border-brand-border font-bold">
+                <option value="ALL">All Order Statuses</option>
+                <option value="Received">Received</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Supplier Ordering">Supplier Ordering</option>
+                <option value="Shipped">Shipped</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+            </div>
+            <button onclick="exportOrdersToCsv()" class="text-xs bg-slate-800 text-white font-bold px-3 py-2 rounded-xl">Export Orders CSV</button>
+          </div>
+
+          <div class="space-y-3" id="adOrdersCardsContainer">
+            <!-- Full Reseller Order Cards injected via JS -->
+          </div>
+        </div>
+
+        <!-- 8.6 SUPPLIER MANAGEMENT TAB -->
+        <div id="adminPanel-suppliers" class="hidden space-y-4">
+          <div class="flex justify-between items-center">
+            <h3 class="text-sm font-black text-brand-navy uppercase">Wholesale Suppliers Directory</h3>
+            <button onclick="openSupplierModal(null)" class="text-xs bg-brand-navy text-brand-gold font-bold px-3 py-2 rounded-xl shadow">+ Add Supplier</button>
+          </div>
+          <p class="text-xs text-slate-500">Notice: All supplier data is strictly private and hidden from customer frontends.</p>
+          <div id="suppliersCardsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+        </div>
+
+        <!-- 8.7 PROFIT, ACCOUNTING & EXPENSES TAB -->
+        <div id="adminPanel-accounting" class="hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="bg-white p-4 rounded-2xl border border-brand-border">
+              <span class="text-xs font-bold text-slate-500">Gross Sales</span>
+              <div id="accGrossSales" class="text-xl font-black text-brand-navy">₹0</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-brand-border">
+              <span class="text-xs font-bold text-slate-500">Total Costs & Expenses</span>
+              <div id="accTotalExpenses" class="text-xl font-black text-rose-600">₹0</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl border border-brand-border">
+              <span class="text-xs font-bold text-slate-500">Net Realized Profit</span>
+              <div id="accNetProfit" class="text-xl font-black text-green-700">₹0</div>
+            </div>
+          </div>
+
+          <!-- Record Business Expense -->
+          <div class="bg-white p-4 rounded-2xl border border-brand-border space-y-3">
+            <h4 class="text-xs font-black uppercase text-brand-navy">Record Business Expense</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+              <input type="text" id="expCategory" placeholder="e.g. Courier, Packaging Box" class="text-xs p-2 rounded-lg border border-brand-border">
+              <input type="number" id="expAmount" placeholder="Amount (₹)" class="text-xs p-2 rounded-lg border border-brand-border">
+              <input type="text" id="expNote" placeholder="Notes / Order #" class="text-xs p-2 rounded-lg border border-brand-border">
+              <button onclick="recordNewExpense()" class="bg-brand-navy text-white text-xs font-bold py-2 rounded-lg">Add Expense</button>
+            </div>
+          </div>
+
+          <!-- Expenses Ledger -->
+          <div class="bg-white rounded-2xl border border-brand-border p-4">
+            <h4 class="text-xs font-black uppercase text-slate-600 mb-2">Recent Business Expense Logs</h4>
+            <div id="expenseLogsList" class="space-y-1.5 text-xs"></div>
+          </div>
+        </div>
+
+        <!-- 8.8 SETTINGS TAB -->
+        <div id="adminPanel-settings" class="hidden space-y-4">
+          <div class="bg-white p-5 rounded-2xl border border-brand-border shadow-sm space-y-4 max-w-2xl">
+            <h3 class="text-sm font-black text-brand-navy uppercase border-b pb-2">DealCart Business & Operations Settings</h3>
+            
+            <!-- Global COD Switch -->
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+              <div>
+                <div class="text-xs font-black text-slate-800">Master Cash On Delivery (COD) Switch</div>
+                <div class="text-[11px] text-slate-500">Controls store-wide COD availability for customers</div>
+              </div>
+              <button id="masterCodToggleBtn" onclick="toggleMasterCOD()" class="px-4 py-2 rounded-xl text-xs font-black text-white bg-green-600">COD: ENABLED</button>
+            </div>
+
+            <!-- Customer Cancellation Window Setting -->
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Customer Order Cancellation Window</label>
+              <select id="cfgCancelWindow" class="w-full text-xs p-2 rounded-xl border border-brand-border">
+                <option value="15">15 Minutes</option>
+                <option value="30">30 Minutes</option>
+                <option value="60">1 Hour</option>
+                <option value="120">2 Hours</option>
+                <option value="360">6 Hours</option>
+                <option value="1440">24 Hours</option>
+              </select>
+              <p class="text-[10px] text-slate-400 mt-1">Customers can cancel their orders only within this timeframe after placing an order.</p>
+            </div>
+
+            <!-- WhatsApp & UPI Configurations -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">Store WhatsApp Phone</label>
+                <input type="text" id="cfgSellerPhone" class="w-full text-xs p-2 rounded-xl border border-brand-border">
+              </div>
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1">DealCart UPI VPA / ID</label>
+                <input type="text" id="cfgSellerUpi" class="w-full text-xs p-2 rounded-xl border border-brand-border">
+              </div>
+            </div>
+
+            <!-- Supabase Data Protection Notice -->
+            <div class="p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 space-y-1">
+              <div class="font-bold">🛡️ Supabase Existing Data Protection: ACTIVE</div>
+              <p class="text-[11px] text-blue-700">Connected Project: <code class="font-mono">mdobwluczmjtybjmdzvz.supabase.co</code>. Tables are loaded read-first. Existing products and assets are never deleted or overridden without authorization.</p>
+            </div>
+
+            <button onclick="saveAdminSettings()" class="w-full bg-brand-navy text-brand-gold font-black py-2.5 rounded-xl text-xs uppercase tracking-wider shadow">Save Configurations</button>
+
+            <!-- Settings Backup & Restore (does not include products, customers, or orders) -->
+            <div class="border-2 border-emerald-200 bg-emerald-50/70 rounded-xl p-4 space-y-3">
+              <div>
+                <h4 class="text-xs font-black text-emerald-900">🛡️ Settings Backup & Restore</h4>
+                <p class="text-[11px] text-emerald-800 mt-1">Exports your saved store configuration and Admin password hash. Products, customers, and orders are not included or changed.</p>
+              </div>
+              <button type="button" onclick="downloadDealCartSettingsBackup()" class="w-full bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs">Download Settings Backup</button>
+              <div class="border-t border-emerald-200 pt-3 space-y-2">
+                <label class="block text-[11px] font-bold text-emerald-900" for="dealCartSettingsRestoreFile">Restore a previous DealCart settings backup</label>
+                <input id="dealCartSettingsRestoreFile" type="file" accept="application/json,.json" class="w-full text-xs text-slate-700" />
+                <button type="button" onclick="restoreDealCartSettingsBackup()" class="w-full bg-white border border-emerald-700 text-emerald-900 font-bold py-2.5 rounded-xl text-xs">Restore Settings from File</button>
+                <p class="text-[10px] text-emerald-800">Restore merges the saved configuration with the current defaults. It does not import or delete products, customer profiles, or orders.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- ==================== MOBILE BOTTOM NAVIGATION BAR ==================== -->
+    <nav class="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-brand-navy border-t border-brand-navylight/80 px-2 py-1.5 flex justify-around items-center text-white">
+      <button onclick="navigateTo('home')" id="bnav-home" class="flex flex-col items-center p-1 text-brand-gold font-bold text-[10px]">
+        <span class="text-base">🏠</span>
+        <span>Home</span>
+      </button>
+      <button onclick="navigateTo('categories')" id="bnav-categories" class="flex flex-col items-center p-1 text-slate-300 font-bold text-[10px]">
+        <span class="text-base">📂</span>
+        <span>Categories</span>
+      </button>
+      <button onclick="navigateTo('wishlist')" id="bnav-wishlist" class="flex flex-col items-center p-1 text-slate-300 font-bold text-[10px] relative">
+        <span class="text-base">❤️</span>
+        <span>Wishlist</span>
+        <span id="bnavWishlistBadge" class="hidden absolute top-0 right-2 bg-brand-gold text-brand-navy text-[9px] w-3.5 h-3.5 rounded-full font-black flex items-center justify-center">0</span>
+      </button>
+      <button onclick="navigateTo('bag')" id="bnav-bag" class="flex flex-col items-center p-1 text-slate-300 font-bold text-[10px] relative">
+        <span class="text-base">🛒</span>
+        <span>Bag</span>
+        <span id="bnavBagBadge" class="hidden absolute top-0 right-2 bg-brand-gold text-brand-navy text-[9px] w-3.5 h-3.5 rounded-full font-black flex items-center justify-center">0</span>
+      </button>
+      <button onclick="navigateTo('account')" id="bnav-account" class="flex flex-col items-center p-1 text-slate-300 font-bold text-[10px]">
+        <span class="text-base">👤</span>
+        <span>Account</span>
+      </button>
+    </nav>
+
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. PRODUCT DETAIL MODAL -->
+  <div id="productDetailModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-2xl max-h-[92vh] rounded-3xl overflow-y-auto shadow-2xl relative flex flex-col">
+      <!-- Modal Close Button -->
+      <button onclick="closeProductDetailModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-slate-900/60 text-white font-black flex items-center justify-center hover:bg-slate-900">✕</button>
+
+      <!-- Content Area -->
+      <div id="productDetailContent" class="p-4 md:p-6 space-y-4">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. ADMIN AUTH MODAL (PASSWORD ONLY) -->
+  <div id="adminAuthModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 bg-brand-navy text-brand-gold rounded-2xl flex items-center justify-center mx-auto text-xl shadow">🔐</div>
+      <div>
+        <h3 class="text-base font-black text-brand-navy">Owner / Admin Access</h3>
+        <p class="text-xs text-slate-500">Enter your secure DealCart master password.</p>
+      </div>
+
+      <div class="text-left space-y-1">
+        <label class="text-[11px] font-bold text-slate-700">Admin Password</label>
+        <input type="password" id="adminPasswordInput" placeholder="Enter password" class="w-full text-xs p-3 rounded-xl border border-brand-border focus:ring-2 focus:ring-brand-gold">
+      </div>
+
+      <button onclick="verifyAdminPassword()" class="w-full bg-brand-navy hover:bg-brand-navylight text-brand-gold py-3 rounded-xl text-xs font-black uppercase tracking-wider shadow">
+        Access Control Hub
+      </button>
+
+      <button onclick="closeAdminAuthModal()" class="text-xs text-slate-500 hover:underline">Return to Store</button>
+    </div>
+  </div>
+
+  <!-- 3. CHANGE ADMIN PASSWORD MODAL -->
+  <div id="changePassModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
+      <h3 class="text-sm font-black text-brand-navy">Change Admin Master Password</h3>
+      
+      <div>
+        <label class="text-[11px] font-bold text-slate-600 block mb-1">Current Password</label>
+        <input type="password" id="curPassInput" class="w-full text-xs p-2.5 rounded-xl border border-brand-border">
+      </div>
+
+      <div>
+        <label class="text-[11px] font-bold text-slate-600 block mb-1">New Password (Min 8 chars)</label>
+        <input type="password" id="newPassInput" class="w-full text-xs p-2.5 rounded-xl border border-brand-border">
+      </div>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="saveNewAdminPassword()" class="flex-1 bg-brand-navy text-brand-gold text-xs font-bold py-2.5 rounded-xl">Save Password</button>
+        <button onclick="closeChangePasswordModal()" class="px-3 bg-slate-200 text-slate-700 text-xs font-bold rounded-xl">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. PRODUCT EDIT / ADD MODAL -->
+  <div id="productEditModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-xl max-h-[90vh] rounded-3xl overflow-y-auto p-5 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 id="productEditModalTitle" class="text-sm font-black text-brand-navy">Add / Edit Product</h3>
+        <button onclick="closeProductEditModal()" class="text-slate-500 hover:text-black font-bold">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <input type="hidden" id="editProdId">
+
+        <!-- Product Type -->
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Product Inventory Type *</label>
+          <div class="flex gap-4">
+            <label class="flex items-center gap-1.5"><input type="radio" name="editProdType" value="SUPPLIER" checked onchange="toggleSupplierFields(true)"> Supplier Dropship / Wholesale</label>
+            <label class="flex items-center gap-1.5"><input type="radio" name="editProdType" value="OWN" onchange="toggleSupplierFields(false)"> Own Inventory</label>
+          </div>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Product Name *</label>
+          <input type="text" id="editProdName" class="w-full p-2 border rounded-xl">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">SKU *</label>
+            <input type="text" id="editProdSku" class="w-full p-2 border rounded-xl">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Category *</label>
+            <select id="editProdCat" class="w-full p-2 border rounded-xl"></select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Selling Price (₹) *</label>
+            <input type="number" id="editProdPrice" oninput="calculateMarginPreview()" class="w-full p-2 border rounded-xl">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">MRP (₹) *</label>
+            <input type="number" id="editProdMrp" class="w-full p-2 border rounded-xl">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Stock Quantity *</label>
+            <input type="number" id="editProdStock" class="w-full p-2 border rounded-xl">
+          </div>
+        </div>
+
+        <!-- Supplier Private Details -->
+        <div id="supplierSpecificFields" class="bg-amber-50/70 p-3 rounded-xl border border-amber-200 space-y-2">
+          <div class="text-[11px] font-black text-amber-900">🔒 PRIVATE SUPPLIER DATA (Hidden from Customers)</div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="font-bold text-slate-700 block mb-1">Wholesale Cost (₹)</label>
+              <input type="number" id="editProdWholesale" oninput="calculateMarginPreview()" class="w-full p-2 border rounded-xl bg-white">
+            </div>
+            <div>
+              <label class="font-bold text-slate-700 block mb-1">Linked Supplier</label>
+              <select id="editProdSupplierSelect" class="w-full p-2 border rounded-xl bg-white"></select>
+            </div>
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-1">Supplier Item URL / Ref</label>
+            <input type="text" id="editProdSupplierUrl" placeholder="https://supplier.com/item..." class="w-full p-2 border rounded-xl bg-white">
+          </div>
+        </div>
+
+        <!-- Margin Warning Banner -->
+        <div id="marginPreviewAlert" class="p-2 rounded-xl text-xs font-bold hidden"></div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Image URLs (comma separated for multiple) *</label>
+          <input type="text" id="editProdImages" class="w-full p-2 border rounded-xl" placeholder="https://image1.jpg, https://image2.jpg">
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Description</label>
+          <textarea id="editProdDesc" rows="3" class="w-full p-2 border rounded-xl"></textarea>
+        </div>
+
+        <div class="flex items-center gap-4">
+          <label class="flex items-center gap-1.5"><input type="checkbox" id="editProdCod" checked> Allow COD for this item</label>
+          <label class="flex items-center gap-1.5"><input type="checkbox" id="editProdPublished" checked> Publish Immediately</label>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button onclick="saveProductModalData()" class="flex-1 bg-brand-navy text-brand-gold font-bold py-2.5 rounded-xl">Save Product</button>
+          <button onclick="closeProductEditModal()" class="px-4 bg-slate-200 text-slate-700 font-bold rounded-xl">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. SUPPLIER MODAL -->
+  <div id="supplierModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-3">
+    <div class="bg-white w-full max-w-md rounded-3xl p-5 shadow-2xl space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 id="supplierModalTitle" class="text-sm font-black text-brand-navy">Add Supplier</h3>
+        <button onclick="closeSupplierModal()" class="text-slate-500 font-bold">✕</button>
+      </div>
+
+      <div class="space-y-2.5 text-xs">
+        <input type="hidden" id="editSupId">
+        <div>
+          <label class="font-bold text-slate-700 block mb-0.5">Supplier / Wholesaler Business Name *</label>
+          <input type="text" id="supName" class="w-full p-2 border rounded-xl">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-0.5">Contact Person Name</label>
+          <input type="text" id="supContact" class="w-full p-2 border rounded-xl">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="font-bold text-slate-700 block mb-0.5">Phone / WhatsApp *</label>
+            <input type="text" id="supPhone" class="w-full p-2 border rounded-xl">
+          </div>
+          <div>
+            <label class="font-bold text-slate-700 block mb-0.5">Website / Portal</label>
+            <input type="text" id="supWebsite" placeholder="https://..." class="w-full p-2 border rounded-xl">
+          </div>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-0.5">Fulfillment Mode</label>
+          <select id="supMode" class="w-full p-2 border rounded-xl">
+            <option value="DROPSHIP">Supports Direct Customer Dropshipping</option>
+            <option value="BULK">Manual Delivery to DealCart Warehouse</option>
+          </select>
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-0.5">Payment Terms & Notes</label>
+          <textarea id="supNotes" rows="2" class="w-full p-2 border rounded-xl"></textarea>
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button onclick="saveSupplierData()" class="flex-1 bg-brand-navy text-brand-gold font-bold py-2 rounded-xl">Save Supplier</button>
+          <button onclick="closeSupplierModal()" class="px-3 bg-slate-200 text-slate-700 font-bold rounded-xl">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. TOAST NOTIFICATION CONTAINER -->
+  <div id="toast" class="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 hidden bg-brand-navy/95 text-white px-5 py-2.5 rounded-full text-xs font-bold shadow-2xl border border-brand-gold/30 flex items-center gap-2">
+    <span id="toastIcon">✓</span>
+    <span id="toastMessage">Action completed</span>
+  </div>
+
+  <!-- ==================== JAVASCRIPT APPLICATION CORE ==================== -->
+  <script>
+    /* =========================================================================
+       1. GLOBAL STATE & ENTERPRISE CONFIGURATION
+       ========================================================================= */
+    const $ = id => document.getElementById(id);
+    const parseMoney = value => {
+      if (value === null || value === undefined || value === '') return 0;
+      if (typeof value === 'number' && Number.isFinite(value)) return value;
+      const cleaned = String(value).replace(/₹/g, '').replace(/,/g, '').replace(/\s/g, '').trim();
+      const num = Number(cleaned);
+      return Number.isFinite(num) ? num : 0;
+    };
+    const ru = n => '₹' + parseMoney(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    const normalizeImages = value => {
+      const list = Array.isArray(value) ? value : String(value ?? '').split(',');
+      const valid = list.map(x => String(x || '').trim()).filter(Boolean);
+      return valid.length ? valid : ['https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'];
+    };
+    const normalizeProduct = p => ({
+      ...p,
+      id: String(p.id ?? ('DC-' + Date.now())),
+      sku: String(p.sku ?? p.SKU ?? ('SKU-' + Date.now())),
+      name: String(p.name ?? p.title ?? p['Product Name'] ?? 'DealCart Item'),
+      category: String(p.category ?? 'Other'),
+      price: parseMoney(p.price ?? p['Selling Price'] ?? p['selling price']),
+      mrp: parseMoney(p.mrp ?? p['MRP'] ?? p['Compare at Price']),
+      wholesaleCost: parseMoney(p.wholesaleCost ?? p.wholesale ?? p['Wholesale Price']),
+      stock: parseMoney(p.stock ?? p.Stock),
+      images: normalizeImages(p.images ?? p.image_url ?? p.image ?? p['Product Image 1'] ?? p['Image URL']),
+      cod: p.cod !== false && p.cod !== 'false',
+      status: String(p.status ?? 'PUBLISHED').toUpperCase(),
+      productType: p.productType ?? 'OWN',
+      rating: Number(p.rating) || 4.8,
+      ratingCount: Number(p.ratingCount) || 0
+    });
+    const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // DealCart Core Storage Keys
+    const STORAGE_KEYS = {
+      PRODUCTS: 'dealcart_v2_products',
+      CART: 'dealcart_v2_cart',
+      WISHLIST: 'dealcart_v2_wishlist',
+      ORDERS: 'dealcart_v2_orders',
+      SUPPLIERS: 'dealcart_v2_suppliers',
+      EXPENSES: 'dealcart_v2_expenses',
+      BATCH_HISTORY: 'dealcart_v2_batch_history',
+      CONFIG: 'dealcart_v2_config',
+      ADMIN_HASH: 'dealcart_v2_admin_pwd_hash',
+      CUSTOMER_PROFILE: 'dealcart_v2_customer'
+    };
+
+    // Default configuration (Protected, non-destructive fallback)
+    const DEFAULT_CONFIG = {
+      sellerPhone: '9650483818',
+      sellerUpi: '9650483818@upi',
+      masterCodEnabled: true,
+      cancelWindowMinutes: 60,
+      supabaseUrl: 'https://mdobwluczmjtybjmdzvz.supabase.co',
+      supabaseKey: '' // Filled via safe admin inputs or env
+    };
+
+    // State Variables
+    let appConfig = { ...DEFAULT_CONFIG };
+    let products = [];
+    let cart = [];
+    let wishlist = [];
+    let orders = [];
+    let suppliers = [];
+    let expenses = [];
+    let batchHistory = [];
+    let customerProfile = { name: 'Customer', phone: '9650483818', addresses: [] };
+    let currentView = 'home';
+    let isAdminAuthed = false;
+    let selectedProductIds = new Set();
+    let currentBannerIndex = 0;
+    let bannerInterval = null;
+    let appliedCoupon = null;
+
+    // Available categories
+    const ALL_CATEGORIES = ['All', 'Puja Items', 'Fashion', 'Women', 'Footwear', 'Electronics', 'Other'];
+
+    // Default Promotional Banners
+    const PROMO_BANNERS = [
+      {
+        title: "GRAND FESTIVE SAVINGS",
+        subtitle: "Direct Factory Loafers, Kurti Sets & Puja Items at wholesale rates",
+        badge: "Up to 70% OFF",
+        bg: "from-blue-900 to-indigo-950",
+        ctaText: "Shop Trending",
+        action: () => filterBySection('trending')
+      },
+      {
+        title: "SACRED PUJA SAMAGRI",
+        subtitle: "Pure Hawan cups, brass diyas & spiritual essentials",
+        badge: "Factory Direct",
+        bg: "from-amber-900 to-stone-900",
+        ctaText: "Explore Puja Items",
+        action: () => filterCategory('Puja Items')
+      },
+      {
+        title: "STEP IN STYLE",
+        subtitle: "Handcrafted Men's Slip-On Loafers & Casual Sneakers",
+        badge: "Starts at ₹585",
+        bg: "from-slate-900 to-brand-navy",
+        ctaText: "View Footwear",
+        action: () => filterCategory('Footwear')
+      }
+    ];
+
+    /* =========================================================================
+       2. SECURE CRYPTO (PBKDF2/SHA-256 for Password-Only Admin)
+       ========================================================================= */
+    async function hashPassword(pwd) {
+      const enc = new TextEncoder();
+      const salt = enc.encode("DealCart_Reseller_Enterprise_Salt_2026");
+      const keyMaterial = await window.crypto.subtle.importKey("raw", enc.encode(pwd), { name: "PBKDF2" }, false, ["deriveKey", "deriveBits"]);
+      const key = await window.crypto.subtle.deriveKey(
+        { name: "PBKDF2", salt: salt, iterations: 100000, hash: "SHA-256" },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+      const exported = await window.crypto.subtle.exportKey("raw", key);
+      return Array.from(new Uint8Array(exported)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function initAdminSecurity() {
+      const storedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_HASH);
+      if (!storedHash) {
+        // Set initial secure master hash (DealCart@2026 as standard strong default)
+        const initial = await hashPassword("DealCart@2026");
+        localStorage.setItem(STORAGE_KEYS.ADMIN_HASH, initial);
+      }
+    }
+
+    /* =========================================================================
+       3. DATA INITIALIZATION & EXISTING SUPABASE RECONCILIATION
+       ========================================================================= */
+    // High-Definition Seed Catalog matching existing Supabase items
+    const SEED_CATALOG = [
+      {
+        id: "DC-1001",
+        sku: "LOAF-BLK-01",
+        name: "Premium Handcrafted Slip-On Loafers for Men",
+        category: "Footwear",
+        price: 585,
+        mrp: 1299,
+        wholesaleCost: 380,
+        stock: 45,
+        images: ["https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=800&auto=format&fit=crop&q=80"],
+        description: "High-grade vegan leather slip-ons with cushioned arch support, anti-skid rubber sole and luxury finish.",
+        cod: true,
+        status: "PUBLISHED",
+        productType: "SUPPLIER",
+        supplierId: "SUP-1",
+        supplierUrl: "https://wholesaler-portal.example.com/item/1001",
+        rating: 4.8,
+        ratingCount: 142
+      },
+      {
+        id: "DC-1002",
+        sku: "KURTI-KHD-02",
+        name: "Ethnic Khadi Cotton Kurti with Pant & Dupatta Set",
+        category: "Women",
+        price: 599,
+        mrp: 1499,
+        wholesaleCost: 390,
+        stock: 30,
+        images: ["https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800&auto=format&fit=crop&q=80"],
+        description: "Breathable pure Khadi weave with handcrafted wooden buttons. Complete 3-piece designer festive wear.",
+        cod: true,
+        status: "PUBLISHED",
+        productType: "SUPPLIER",
+        supplierId: "SUP-2",
+        supplierUrl: "https://wholesaler-portal.example.com/item/1002",
+        rating: 4.9,
+        ratingCount: 88
+      },
+      {
+        id: "DC-1003",
+        sku: "SAR-KANJI-03",
+        name: "Kanjivaram Soft Silk Saree with Rich Gold Zari Pallu",
+        category: "Fashion",
+        price: 610,
+        mrp: 1999,
+        wholesaleCost: 410,
+        stock: 22,
+        images: ["https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=800&auto=format&fit=crop&q=80"],
+        description: "Woven traditional floral motifs with heavy golden zari borders. Includes matching unstitched blouse piece.",
+        cod: false,
+        status: "PUBLISHED",
+        productType: "SUPPLIER",
+        supplierId: "SUP-2",
+        supplierUrl: "https://wholesaler-portal.example.com/item/1003",
+        rating: 4.7,
+        ratingCount: 204
+      },
+      {
+        id: "DC-1004",
+        sku: "PUJA-SAM-04",
+        name: "Sacred Brass Diya with Herbal Dhoop & Akhand Jyot",
+        category: "Puja Items",
+        price: 349,
+        mrp: 699,
+        wholesaleCost: 190,
+        stock: 60,
+        images: ["https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=800&auto=format&fit=crop&q=80"],
+        description: "Pure virgin brass puja lamp with non-spill oil holder and natural Guggal dhoop cone pack.",
+        cod: true,
+        status: "PUBLISHED",
+        productType: "OWN",
+        supplierId: null,
+        supplierUrl: null,
+        rating: 5.0,
+        ratingCount: 95
+      },
+      {
+        id: "DC-1005",
+        sku: "LOAF-BRN-05",
+        name: "Smart Casual Tan Loafers for Men & Boys",
+        category: "Footwear",
+        price: 585,
+        mrp: 1199,
+        wholesaleCost: 380,
+        stock: 18,
+        images: ["https://images.unsplash.com/photo-1607522370275-f14206abe5d3?w=800&auto=format&fit=crop&q=80"],
+        description: "Modern partywear moccasins crafted for formal and casual gatherings. Weather-resistant upper.",
+        cod: true,
+        status: "PUBLISHED",
+        productType: "SUPPLIER",
+        supplierId: "SUP-1",
+        supplierUrl: "https://wholesaler-portal.example.com/item/1005",
+        rating: 4.6,
+        ratingCount: 67
+      }
+    ];
+
+    const SEED_SUPPLIERS = [
+      {
+        id: "SUP-1",
+        name: "Metro Footwear Wholesalers Delhi",
+        contactPerson: "Rajesh Kumar",
+        phone: "9811223344",
+        website: "https://metrofootwear.example.com",
+        fulfillmentMode: "DROPSHIP",
+        notes: "Orders dispatched within 24 hrs. Provides DTDC tracking."
+      },
+      {
+        id: "SUP-2",
+        name: "Surat Saree & Textile Mills",
+        contactPerson: "Deepak Patel",
+        phone: "9879112233",
+        website: "https://suratfabrics.example.com",
+        fulfillmentMode: "DROPSHIP",
+        notes: "Wholesale margin 35%. WhatsApp billing available."
+      }
+    ];
+
+    async function loadInitialData() {
+      // 1. Config
+      try {
+        const savedCfg = localStorage.getItem(STORAGE_KEYS.CONFIG);
+        if (savedCfg) appConfig = { ...DEFAULT_CONFIG, ...JSON.parse(savedCfg) };
+      } catch (e) { console.warn("Config load error", e); }
+
+      // 2. Suppliers
+      try {
+        const savedSup = localStorage.getItem(STORAGE_KEYS.SUPPLIERS);
+        suppliers = savedSup ? JSON.parse(savedSup) : [...SEED_SUPPLIERS];
+      } catch (e) { suppliers = [...SEED_SUPPLIERS]; }
+
+      // 3. Products (Reconcile with Supabase without dropping)
+      try {
+        const savedProd = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
+        products = (savedProd ? JSON.parse(savedProd) : [...SEED_CATALOG]).map(normalizeProduct);
+      } catch (e) { products = [...SEED_CATALOG].map(normalizeProduct); }
+
+      // Non-destructive check on Supabase if URL and Key present
+      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+        try {
+          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
+          // Query products gently
+          const { data: supaItems, error } = await client.from('products').select('*');
+          if (!error && Array.isArray(supaItems) && supaItems.length > 0) {
+            supaItems.forEach(item => {
+              const mappedId = String(item.id || item['Product ID']);
+              const mapped = normalizeProduct({
+                id: mappedId,
+                sku: item.sku || item.SKU,
+                name: item.name || item['Title'] || item['Product Name'],
+                category: item.category,
+                price: item.price ?? item['Price'] ?? item['Selling Price'],
+                mrp: item.mrp ?? item['Compare at Price'] ?? item['MRP'],
+                wholesaleCost: item.wholesale ?? item['Wholesale Price'],
+                stock: item.stock,
+                image_url: item.image_url || item['Product Image 1'] || item['Image URL'],
+                description: item.description,
+                cod: item.cod,
+                status: item.status || 'PUBLISHED',
+                productType: item.productType || 'OWN',
+                supplierId: item.supplierId || null,
+                rating: item.rating,
+                ratingCount: item.ratingCount
+              });
+              const existingIndex = products.findIndex(p => String(p.id) === mappedId || (p.sku && mapped.sku && p.sku.toLowerCase() === mapped.sku.toLowerCase()));
+              if (existingIndex >= 0) {
+                // Supabase is the shared catalog source: refresh the existing local copy instead of leaving stale price/status/image data.
+                products[existingIndex] = { ...products[existingIndex], ...mapped };
+              } else {
+                products.push(mapped);
+              }
+            });
+          }
+        } catch (e) {
+          console.log("Supabase read sync non-destructive notice:", e);
+        }
+      }
+
+      products = products.map(normalizeProduct);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+
+      // 4. Cart & Wishlist
+      try { cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART) || '[]'); } catch(e){ cart = []; }
+      try { wishlist = JSON.parse(localStorage.getItem(STORAGE_KEYS.WISHLIST) || '[]'); } catch(e){ wishlist = []; }
+      try { orders = JSON.parse(localStorage.getItem(STORAGE_KEYS.ORDERS) || '[]'); } catch(e){ orders = []; }
+      try { expenses = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXPENSES) || '[]'); } catch(e){ expenses = []; }
+      try { batchHistory = JSON.parse(localStorage.getItem(STORAGE_KEYS.BATCH_HISTORY) || '[]'); } catch(e){ batchHistory = []; }
+
+      // 5. Customer Profile
+      try {
+        const savedProf = localStorage.getItem(STORAGE_KEYS.CUSTOMER_PROFILE);
+        if (savedProf) customerProfile = JSON.parse(savedProf);
+      } catch (e) {}
+
+      // Update UI Counters
+      updateBadgeCounts();
+    }
+
+    /* =========================================================================
+       4. PWA REGISTRATION & MANIFEST BLOB
+       ========================================================================= */
+    function setupPwaManifest() {
+      const manifestObject = {
+        name: "DealCart Shopping Store",
+        short_name: "DealCart",
+        description: "DealCart - Shop Smart • Save More. Factory deals on Loafers, Sarees & Puja Items.",
+        start_url: "./",
+        display: "standalone",
+        orientation: "portrait",
+        background_color: "#0A192F",
+        theme_color: "#0A192F",
+        icons: [
+          {
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%230A192F'/%3E%3Cpath d='M45 60 L65 130 L145 130 L160 60 Z' fill='none' stroke='%23D4AF37' stroke-width='10' stroke-linejoin='round'/%3E%3Ccircle cx='75' cy='146' r='9' fill='%23D4AF37'/%3E%3Ccircle cx='135' cy='146' r='9' fill='%23D4AF37'/%3E%3Cpath d='M55 86 L152 86' stroke='%23ffffff' stroke-width='6' stroke-linecap='round'/%3E%3C/svg%3E",
+            sizes: "192x192",
+            type: "image/svg+xml"
+          },
+          {
+            src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%230A192F'/%3E%3Cpath d='M120 160 L180 350 L390 350 L430 160 Z' fill='none' stroke='%23D4AF37' stroke-width='28' stroke-linejoin='round'/%3E%3Ccircle cx='200' cy='390' r='24' fill='%23D4AF37'/%3E%3Ccircle cx='360' cy='390' r='24' fill='%23D4AF37'/%3E%3Cpath d='M140 230 L400 230' stroke='%23ffffff' stroke-width='16' stroke-linecap='round'/%3E%3C/svg%3E",
+            sizes: "512x512",
+            type: "image/svg+xml"
+          }
+        ]
+      };
+
+      const stringManifest = JSON.stringify(manifestObject);
+      const blob = new Blob([stringManifest], { type: 'application/json' });
+      const manifestUrl = URL.createObjectURL(blob);
+      $('manifestPlaceholder').setAttribute('href', manifestUrl);
+
+      // Register Offline Service Worker via Blob
+      if ('serviceWorker' in navigator) {
+        const swScript = `
+          const CACHE_NAME = 'dealcart-cache-v2';
+          self.addEventListener('install', e => { self.skipWaiting(); });
+          self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+          self.addEventListener('fetch', e => {
+            e.respondWith(
+              fetch(e.request).catch(() => caches.match(e.request))
+            );
+          });
+        `;
+        const swBlob = new Blob([swScript], { type: 'application/javascript' });
+        navigator.serviceWorker.register(URL.createObjectURL(swBlob))
+          .catch(err => console.log('SW Registration skipped in current context', err));
+      }
+    }
+
+    /* =========================================================================
+       5. ROUTING & VIEW NAVIGATION
+       ========================================================================= */
+    const ALL_VIEWS = ['home', 'search', 'categories', 'wishlist', 'bag', 'checkout', 'account', 'admin'];
+
+    function navigateTo(viewId) {
+      currentView = viewId;
+      ALL_VIEWS.forEach(v => {
+        const el = $('view-' + v);
+        if (el) el.classList.add('hidden');
+      });
+
+      const target = $('view-' + viewId);
+      if (target) {
+        target.classList.remove('hidden');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      // Update mobile nav styling
+      const navButtons = ['home', 'categories', 'wishlist', 'bag', 'account'];
+      navButtons.forEach(btn => {
+        const el = $('bnav-' + btn);
+        if (el) {
+          if (btn === viewId) {
+            el.className = 'flex flex-col items-center p-1 text-brand-gold font-black text-[10px] scale-105 transition';
+          } else {
+            el.className = 'flex flex-col items-center p-1 text-slate-300 font-bold text-[10px] transition';
+          }
+        }
+      });
+
+      // View-specific initializations
+      if (viewId === 'home') renderHomeView();
+      else if (viewId === 'search') applyFiltersAndSort();
+      else if (viewId === 'categories') renderCategoriesView();
+      else if (viewId === 'wishlist') renderWishlistView();
+      else if (viewId === 'bag') renderBagView();
+      else if (viewId === 'checkout') renderCheckoutView();
+      else if (viewId === 'account') renderAccountView();
+      else if (viewId === 'admin') renderAdminDashboard();
+    }
+
+    /* =========================================================================
+       6. TOAST MESSAGES
+       ========================================================================= */
+    function showToast(msg, isSuccess = true) {
+      const t = $('toast');
+      $('toastIcon').textContent = isSuccess ? '✓' : '⚠️';
+      $('toastMessage').textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => { t.classList.add('hidden'); }, 2400);
+    }
+
+    /* =========================================================================
+       7. CUSTOMER HOME & CAROUSEL RENDERING
+       ========================================================================= */
+    function renderHomeView() {
+      renderBannersCarousel();
+      renderHomeCategoryPills();
+      renderHomeProductSections();
+    }
+
+    function renderBannersCarousel() {
+      const container = $('bannerCarousel');
+      const dots = $('bannerDots');
+      container.innerHTML = PROMO_BANNERS.map((b, i) => `
+        <div class="min-w-full p-6 md:p-10 bg-gradient-to-r ${b.bg} text-white flex flex-col justify-between items-start select-none relative overflow-hidden">
+          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-brand-gold text-brand-navy mb-2 shadow">
+            ${b.badge}
+          </span>
+          <h2 class="text-xl md:text-3xl font-black tracking-tight max-w-md">${esc(b.title)}</h2>
+          <p class="text-xs md:text-sm text-slate-200 mt-1 max-w-sm line-clamp-2">${esc(b.subtitle)}</p>
+          <button onclick="PROMO_BANNERS[${i}].action()" class="mt-4 bg-brand-gold hover:bg-brand-goldhover text-brand-navy font-black text-xs md:text-sm px-5 py-2.5 rounded-xl shadow transition">
+            ${b.ctaText} →
+          </button>
+        </div>
+      `).join('');
+
+      dots.innerHTML = PROMO_BANNERS.map((_, i) => `
+        <button onclick="setBannerIndex(${i})" class="w-2 h-2 rounded-full transition-all ${i === currentBannerIndex ? 'w-5 bg-brand-gold' : 'bg-white/50'}"></button>
+      `).join('');
+
+      if (!bannerInterval) {
+        bannerInterval = setInterval(() => {
+          currentBannerIndex = (currentBannerIndex + 1) % PROMO_BANNERS.length;
+          setBannerIndex(currentBannerIndex);
+        }, 5000);
+      }
+    }
+
+    function setBannerIndex(idx) {
+      currentBannerIndex = idx;
+      $('bannerCarousel').style.transform = `translateX(-${idx * 100}%)`;
+      const dots = $('bannerDots').children;
+      for (let i = 0; i < dots.length; i++) {
+        dots[i].className = `h-2 rounded-full transition-all ${i === idx ? 'w-5 bg-brand-gold' : 'w-2 bg-white/50'}`;
+      }
+    }
+
+    function renderHomeCategoryPills() {
+      const bar = $('homeCategoriesBar');
+      bar.innerHTML = ALL_CATEGORIES.map(c => `
+        <button onclick="filterCategory('${c}')" class="px-3.5 py-1.5 rounded-full bg-white hover:bg-slate-100 text-brand-navy font-bold text-xs border border-brand-border whitespace-nowrap shadow-sm transition">
+          ${c === 'All' ? '✨ ' + c : c}
+        </button>
+      `).join('');
+    }
+
+    function renderHomeProductSections() {
+      const published = products.filter(p => p.status === 'PUBLISHED');
+      
+      // Trending: first 4
+      $('trendingGrid').innerHTML = published.slice(0, 4).map(p => createProductCardHtml(p)).join('');
+      // Best Sellers
+      $('bestSellerGrid').innerHTML = published.slice(1, 5).map(p => createProductCardHtml(p)).join('');
+      // New arrivals
+      $('newArrivalsGrid').innerHTML = published.slice().reverse().slice(0, 4).map(p => createProductCardHtml(p)).join('');
+    }
+
+    /* =========================================================================
+       8. PRODUCT CARD COMPONENT
+       ========================================================================= */
+    function createProductCardHtml(p) {
+      p = normalizeProduct(p);
+      const price = parseMoney(p.price);
+      const mrp = parseMoney(p.mrp);
+      const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
+      const isWish = wishlist.includes(p.id);
+      const isCodAvailable = appConfig.masterCodEnabled && p.cod;
+      const imageUrl = normalizeImages(p.images)[0];
+
+      return `
+        <div class="bg-white rounded-2xl border border-brand-border p-2.5 md:p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition group relative">
+          <!-- Wishlist Toggle -->
+          <button onclick="toggleWishlist('${p.id}', event)" class="absolute top-4 right-4 z-10 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm border border-slate-200 flex items-center justify-center text-xs shadow-sm hover:scale-110 transition">
+            ${isWish ? '❤️' : '🤍'}
+          </button>
+
+          <!-- Clickable Image & Details -->
+          <div onclick="openProductDetailModal('${p.id}')" class="cursor-pointer">
+            <div class="w-full h-36 md:h-44 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center relative mb-2">
+              <img src="${esc(imageUrl)}" alt="${esc(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/600x600/0A192F/D4AF37?text=DealCart';" class="w-full h-full object-contain group-hover:scale-105 transition duration-300">
+              ${discount > 0 ? `
+                <span class="absolute bottom-1.5 left-1.5 bg-green-700 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow">
+                  ${discount}% OFF
+                </span>
+              ` : ''}
+            </div>
+
+            <div class="text-[10px] text-slate-400 font-bold uppercase tracking-wider">${esc(p.category)}</div>
+            <h4 class="text-xs font-bold text-slate-800 line-clamp-2 h-8 leading-snug group-hover:text-brand-navy">${esc(p.name)}</h4>
+
+            <!-- Rating snippet -->
+            <div class="flex items-center gap-1 my-1">
+              <span class="text-[10px] bg-amber-100 text-amber-900 font-black px-1.5 py-0.2 rounded flex items-center">
+                ★ ${p.rating || 4.8}
+              </span>
+              <span class="text-[10px] text-slate-400">(${p.ratingCount || 18})</span>
+            </div>
+
+            <!-- Price Row -->
+            <div class="flex items-baseline gap-2 mt-0.5">
+              <span class="text-sm md:text-base font-black text-brand-navy">${ru(price)}</span>
+              ${mrp > 0 ? `<span class="text-[11px] text-slate-400 line-through">${ru(mrp)}</span>` : ''}
+            </div>
+
+            <!-- Delivery / COD Badge -->
+            <div class="mt-1">
+              ${isCodAvailable ? `
+                <span class="inline-block text-[9px] font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded">
+                  ✓ Cash on Delivery
+                </span>
+              ` : `
+                <span class="inline-block text-[9px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-1.5 py-0.5 rounded">
+                  ⚡ Online Payment Only
+                </span>
+              `}
+            </div>
+          </div>
+
+          <!-- Add to Bag Button -->
+          <div class="mt-2.5 pt-2 border-t border-slate-100 flex gap-1.5">
+            <button onclick="addToBag('${p.id}', 1, event)" class="flex-1 bg-brand-gold hover:bg-brand-goldhover text-brand-navy text-xs font-black py-2 rounded-xl transition flex items-center justify-center gap-1 shadow-sm">
+              <span>+ Add to Bag</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    /* =========================================================================
+       9. PRODUCT DETAIL MODAL & PINCODE CHECKER
+       ========================================================================= */
+    function openProductDetailModal(prodId) {
+      const p = products.find(x => x.id === prodId);
+      if (!p) return;
+
+      const discount = Math.round(((p.mrp - p.price) / p.mrp) * 100);
+      const isCodAvailable = appConfig.masterCodEnabled && p.cod;
+
+      const content = $('productDetailContent');
+      content.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Gallery -->
+          <div class="space-y-2">
+            <div class="w-full h-64 md:h-80 bg-slate-50 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-200">
+              <img id="detailMainImage" src="${esc(p.images[0])}" class="w-full h-full object-contain">
+            </div>
+            ${p.images.length > 1 ? `
+              <div class="flex gap-2 overflow-x-auto no-scrollbar py-1">
+                ${p.images.map((img, i) => `
+                  <button onclick="$('detailMainImage').src='${esc(img)}'" class="w-14 h-14 rounded-xl border border-slate-300 overflow-hidden shrink-0 hover:border-brand-gold">
+                    <img src="${esc(img)}" class="w-full h-full object-cover">
+                  </button>
+                `).join('')}
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Product Details Form -->
+          <div class="space-y-3">
+            <span class="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">${esc(p.category)} • SKU: ${esc(p.sku)}</span>
+            <h2 class="text-base md:text-lg font-black text-brand-navy">${esc(p.name)}</h2>
+
+            <div class="flex items-center gap-2">
+              <span class="bg-amber-100 text-amber-900 text-xs font-bold px-2 py-0.5 rounded">★ ${p.rating || 4.8} Stars</span>
+              <span class="text-xs text-slate-500 font-medium">${p.ratingCount || 40} Customer Reviews</span>
+            </div>
+
+            <!-- Price -->
+            <div class="flex items-baseline gap-3">
+              <span class="text-xl md:text-2xl font-black text-green-700">${ru(price)}</span>
+              ${p.mrp ? `<span class="text-sm text-slate-400 line-through">${ru(p.mrp)}</span>` : ''}
+              ${discount > 0 ? `<span class="text-xs font-black text-amber-700 bg-amber-100 px-2 py-0.5 rounded">${discount}% OFF</span>` : ''}
+            </div>
+
+            <p class="text-xs text-slate-600 leading-relaxed border-t pt-2">${esc(p.description || 'Premium factory-direct item tested for quality standards.')}</p>
+
+            <!-- Delivery & Pincode Checker -->
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-1.5">
+              <label class="text-[11px] font-bold text-slate-700">Check Delivery to Pincode:</label>
+              <div class="flex gap-2">
+                <input type="text" id="pincodeInputModal" maxlength="6" placeholder="Enter 6-digit Pincode" class="flex-1 text-xs p-2 rounded-lg border border-slate-300">
+                <button onclick="evaluatePincode()" class="bg-brand-navy text-white text-xs font-bold px-3 py-1.5 rounded-lg">Check</button>
+              </div>
+              <p id="pincodeModalResult" class="text-[10px] font-bold hidden"></p>
+            </div>
+
+            <!-- COD & Stock Status -->
+            <div class="flex items-center gap-2 text-xs font-bold">
+              <span class="${p.stock > 0 ? 'text-green-700' : 'text-red-600'}">
+                ● ${p.stock > 0 ? `${p.stock} units left in stock` : 'Out of Stock'}
+              </span>
+              <span class="text-slate-300">|</span>
+              <span class="${isCodAvailable ? 'text-blue-700' : 'text-slate-500'}">
+                ${isCodAvailable ? '✓ COD Eligible' : '⚡ Online Pre-pay'}
+              </span>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-2 pt-2">
+              <button onclick="addToBag('${p.id}', 1); closeProductDetailModal();" class="flex-1 bg-brand-gold hover:bg-brand-goldhover text-brand-navy font-black text-xs md:text-sm py-3 rounded-xl shadow transition">
+                Add to Shopping Bag
+              </button>
+              <button onclick="buyNowDirect('${p.id}')" class="flex-1 bg-brand-navy hover:bg-brand-navylight text-white font-black text-xs md:text-sm py-3 rounded-xl shadow transition">
+                Buy Now ⚡
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      $('productDetailModal').classList.remove('hidden');
+    }
+
+    function closeProductDetailModal() {
+      $('productDetailModal').classList.add('hidden');
+    }
+
+    function evaluatePincode() {
+      const pin = $('pincodeInputModal').value.trim();
+      const res = $('pincodeModalResult');
+      if (pin.length !== 6 || isNaN(pin)) {
+        res.textContent = "❌ Please enter a valid 6-digit PIN code";
+        res.className = "text-[10px] font-bold text-red-600 block";
+        return;
+      }
+      res.textContent = `✓ Standard Delivery Available: Estimated 3 to 5 Business Days`;
+      res.className = "text-[10px] font-bold text-green-700 block";
+    }
+
+    /* =========================================================================
+       10. SEARCH, FILTER & SORT SYSTEM
+       ========================================================================= */
+    let searchDebounce = null;
+    function handleSearchInput(val) {
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(() => {
+        if (currentView !== 'search') navigateTo('search');
+        applyFiltersAndSort();
+      }, 250);
+
+      // Toggle clear buttons
+      const hasVal = val.trim().length > 0;
+      $('desktopSearchClear').classList.toggle('hidden', !hasVal);
+      $('mobileSearchClear').classList.toggle('hidden', !hasVal);
+    }
+
+    function clearSearch() {
+      $('desktopSearchInput').value = '';
+      $('mobileSearchInput').value = '';
+      $('desktopSearchClear').classList.add('hidden');
+      $('mobileSearchClear').classList.add('hidden');
+      applyFiltersAndSort();
+    }
+
+    function filterCategory(cat) {
+      navigateTo('search');
+      $('filterCategory').value = cat === 'All' ? 'ALL' : cat;
+      applyFiltersAndSort();
+    }
+
+    function filterBySection(sec) {
+      navigateTo('search');
+      applyFiltersAndSort();
+    }
+
+    function populateFilterCategoriesDropdown() {
+      const sel = $('filterCategory');
+      sel.innerHTML = '<option value="ALL">All Categories</option>' + ALL_CATEGORIES.filter(c => c !== 'All').map(c => `
+        <option value="${c}">${c}</option>
+      `).join('');
+    }
+
+    function applyFiltersAndSort() {
+      const query = ($('desktopSearchInput').value || $('mobileSearchInput').value || '').trim().toLowerCase();
+      const cat = $('filterCategory').value;
+      const avail = $('filterAvailability').value;
+      const sort = $('sortBy').value;
+
+      let list = products.filter(p => p.status === 'PUBLISHED');
+
+      // Category filter
+      if (cat !== 'ALL') {
+        list = list.filter(p => p.category.toLowerCase() === cat.toLowerCase());
+      }
+
+      // Availability filter
+      if (avail === 'IN_STOCK') {
+        list = list.filter(p => p.stock > 0);
+      } else if (avail === 'COD') {
+        list = list.filter(p => appConfig.masterCodEnabled && p.cod);
+      }
+
+      // Keyword Search
+      if (query) {
+        list = list.filter(p => 
+          p.name.toLowerCase().includes(query) ||
+          p.category.toLowerCase().includes(query) ||
+          p.sku.toLowerCase().includes(query) ||
+          (p.description && p.description.toLowerCase().includes(query))
+        );
+      }
+
+      // Sort
+      if (sort === 'NEWEST') list.reverse();
+      else if (sort === 'PRICE_LOW') list.sort((a,b) => a.price - b.price);
+      else if (sort === 'PRICE_HIGH') list.sort((a,b) => b.price - a.price);
+      else if (sort === 'DISCOUNT') list.sort((a,b) => ((b.mrp - b.price)/b.mrp) - ((a.mrp - a.price)/a.mrp));
+
+      $('searchResultsTitle').textContent = query ? `Results for "${query}"` : (cat !== 'ALL' ? cat : 'All Products');
+      $('searchResultsCount').textContent = `${list.length} items`;
+
+      const grid = $('searchGrid');
+      const empty = $('searchEmptyState');
+
+      if (list.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        grid.innerHTML = list.map(p => createProductCardHtml(p)).join('');
+      }
+    }
+
+    function resetFilters() {
+      $('filterCategory').value = 'ALL';
+      $('filterAvailability').value = 'ALL';
+      $('sortBy').value = 'POPULAR';
+      clearSearch();
+    }
+
+    /* =========================================================================
+       11. SHOPPING BAG & WISHLIST OPERATIONS
+       ========================================================================= */
+    function toggleWishlist(prodId, ev) {
+      if (ev) ev.stopPropagation();
+      const idx = wishlist.indexOf(prodId);
+      if (idx >= 0) {
+        wishlist.splice(idx, 1);
+        showToast("Removed from Wishlist");
+      } else {
+        wishlist.push(prodId);
+        showToast("Added to Wishlist ❤️");
+      }
+      localStorage.setItem(STORAGE_KEYS.WISHLIST, JSON.stringify(wishlist));
+      updateBadgeCounts();
+      if (currentView === 'wishlist') renderWishlistView();
+      else if (currentView === 'home') renderHomeProductSections();
+      else if (currentView === 'search') applyFiltersAndSort();
+    }
+
+    function addToBag(prodId, qty = 1, ev) {
+      if (ev) ev.stopPropagation();
+      const p = products.find(x => x.id === prodId);
+      if (!p) return;
+
+      const existing = cart.find(x => x.id === prodId);
+      if (existing) {
+        if (existing.qty + qty > p.stock) {
+          showToast(`Stock limit reached (Max: ${p.stock})`, false);
+          return;
+        }
+        existing.qty += qty;
+      } else {
+        if (p.stock < 1) {
+          showToast("Sorry, this item is out of stock", false);
+          return;
+        }
+        cart.push({ ...p, qty: 1 });
+      }
+
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      updateBadgeCounts();
+      showToast("Added to Shopping Bag 🛒");
+    }
+
+    function buyNowDirect(prodId) {
+      addToBag(prodId, 1);
+      closeProductDetailModal();
+      navigateTo('bag');
+    }
+
+    function updateBadgeCounts() {
+      const bagCount = cart.reduce((s, i) => s + i.qty, 0);
+      $('bagCountBadge').textContent = bagCount;
+      $('bnavBagBadge').textContent = bagCount;
+      $('bnavBagBadge').classList.toggle('hidden', bagCount === 0);
+
+      const wishCount = wishlist.length;
+      $('wishlistCountBadge').textContent = wishCount;
+      $('wishlistCountBadge').classList.toggle('hidden', wishCount === 0);
+      $('bnavWishlistBadge').textContent = wishCount;
+      $('bnavWishlistBadge').classList.toggle('hidden', wishCount === 0);
+    }
+
+    function renderWishlistView() {
+      const items = products.filter(p => wishlist.includes(p.id));
+      $('wishlistPageCount').textContent = `${items.length} items`;
+      const grid = $('wishlistGrid');
+      const empty = $('wishlistEmptyState');
+
+      if (items.length === 0) {
+        grid.innerHTML = '';
+        empty.classList.remove('hidden');
+      } else {
+        empty.classList.add('hidden');
+        grid.innerHTML = items.map(p => createProductCardHtml(p)).join('');
+      }
+    }
+
+    function renderBagView() {
+      const container = $('bagItemsContainer');
+      const notEmpty = $('bagNotEmptyContent');
+      const empty = $('bagEmptyState');
+
+      if (cart.length === 0) {
+        notEmpty.classList.add('hidden');
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      notEmpty.classList.remove('hidden');
+
+      container.innerHTML = cart.map((item, idx) => `
+        <div class="bg-white p-3.5 rounded-2xl border border-brand-border flex gap-3 items-center shadow-sm">
+          <img src="${esc(item.images[0])}" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl bg-slate-50 border p-1 shrink-0">
+          <div class="flex-1 min-w-0">
+            <h4 class="text-xs md:text-sm font-bold text-slate-800 truncate">${esc(item.name)}</h4>
+            <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">SKU: ${esc(item.sku)}</div>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-sm font-black text-brand-navy">${ru(item.price)}</span>
+              ${item.mrp ? `<span class="text-xs text-slate-400 line-through">${ru(item.mrp)}</span>` : ''}
+            </div>
+          </div>
+          <!-- Qty controls -->
+          <div class="flex flex-col items-end gap-1.5">
+            <div class="flex items-center border border-brand-border rounded-xl bg-slate-50">
+              <button onclick="updateBagQty('${item.id}', -1)" class="w-7 h-7 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-200 rounded-l-xl">−</button>
+              <span class="w-7 text-center text-xs font-black text-brand-navy">${item.qty}</span>
+              <button onclick="updateBagQty('${item.id}', 1)" class="w-7 h-7 flex items-center justify-center font-bold text-slate-600 hover:bg-slate-200 rounded-r-xl">+</button>
+            </div>
+            <button onclick="removeFromBag('${item.id}')" class="text-[10px] text-rose-600 font-bold hover:underline">Remove</button>
+          </div>
+        </div>
+      `).join('');
+
+      recalculateBagTotals();
+    }
+
+    function updateBagQty(prodId, delta) {
+      const item = cart.find(x => x.id === prodId);
+      const originalProduct = products.find(x => x.id === prodId);
+      if (!item) return;
+
+      if (delta > 0 && originalProduct && (item.qty + delta > originalProduct.stock)) {
+        showToast(`Stock limit: Only ${originalProduct.stock} available`, false);
+        return;
+      }
+
+      item.qty += delta;
+      if (item.qty <= 0) {
+        cart = cart.filter(x => x.id !== prodId);
+      }
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      updateBadgeCounts();
+      renderBagView();
+    }
+
+    function removeFromBag(prodId) {
+      cart = cart.filter(x => x.id !== prodId);
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      updateBadgeCounts();
+      renderBagView();
+      showToast("Item removed from bag");
+    }
+
+    function recalculateBagTotals() {
+      const mrpTotal = cart.reduce((s, i) => s + (i.mrp || i.price) * i.qty, 0);
+      const sellingTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+      const discountTotal = mrpTotal - sellingTotal;
+      
+      let couponDiscount = 0;
+      if (appliedCoupon) {
+        couponDiscount = appliedCoupon.type === 'PCT' 
+          ? Math.round((sellingTotal * appliedCoupon.val) / 100) 
+          : appliedCoupon.val;
+      }
+
+      const grandTotal = Math.max(0, sellingTotal - couponDiscount);
+
+      $('bagMrpTotal').textContent = ru(mrpTotal);
+      $('bagDiscountTotal').textContent = '- ' + ru(discountTotal);
+      $('bagSubtotal').textContent = ru(sellingTotal);
+      
+      if (couponDiscount > 0) {
+        $('couponDiscountRow').classList.remove('hidden');
+        $('couponDiscountRow').classList.add('flex');
+        $('bagCouponDiscount').textContent = '- ' + ru(couponDiscount);
+      } else {
+        $('couponDiscountRow').classList.add('hidden');
+      }
+
+      $('bagGrandTotal').textContent = ru(grandTotal);
+    }
+
+    function applyCoupon() {
+      const code = $('couponCodeInput').value.trim().toUpperCase();
+      const fb = $('couponFeedback');
+      fb.classList.remove('hidden');
+
+      if (code === 'DEAL10') {
+        appliedCoupon = { code: 'DEAL10', type: 'PCT', val: 10 };
+        fb.textContent = "✓ 10% Extra Discount Applied!";
+        fb.className = "text-[10px] font-bold text-green-700";
+        recalculateBagTotals();
+      } else if (code === 'SAVE50') {
+        appliedCoupon = { code: 'SAVE50', type: 'FLAT', val: 50 };
+        fb.textContent = "✓ Flat ₹50 Discount Applied!";
+        fb.className = "text-[10px] font-bold text-green-700";
+        recalculateBagTotals();
+      } else {
+        appliedCoupon = null;
+        fb.textContent = "❌ Invalid Coupon Code. Try DEAL10";
+        fb.className = "text-[10px] font-bold text-red-600";
+        recalculateBagTotals();
+      }
+    }
+
+    /* =========================================================================
+       12. CHECKOUT & RESELLER ORDER PLACEMENT
+       ========================================================================= */
+    let selectedPayMethod = 'UPI';
+
+    function proceedToCheckout() {
+      if (cart.length === 0) return;
+      navigateTo('checkout');
+    }
+
+    function renderCheckoutView() {
+      const grandTotal = calculateCurrentGrandTotal();
+      $('checkoutPayableText').textContent = ru(grandTotal);
+
+      // Check if any item in cart restricts COD
+      const hasRestrictedCod = cart.some(i => !i.cod) || !appConfig.masterCodEnabled;
+      const codLabel = $('codSelectLabel');
+      const codWarning = $('codDisabledWarning');
+
+      if (hasRestrictedCod) {
+        codLabel.classList.add('opacity-50', 'pointer-events-none');
+        codWarning.classList.remove('hidden');
+        togglePayMode('UPI');
+      } else {
+        codLabel.classList.remove('opacity-50', 'pointer-events-none');
+        codWarning.classList.add('hidden');
+      }
+
+      // Preload customer fields
+      $('shipName').value = customerProfile.name || '';
+      $('shipPhone').value = customerProfile.phone || '';
+      if (customerProfile.addresses.length > 0) {
+        const ad = customerProfile.addresses[0];
+        $('shipPincode').value = ad.pincode || '';
+        $('shipCity').value = ad.city || '';
+        $('shipHouse').value = ad.house || '';
+        $('shipStreet').value = ad.street || '';
+      }
+
+      updateCheckoutQrCode(grandTotal);
+    }
+
+    function calculateCurrentGrandTotal() {
+      const sellingTotal = cart.reduce((s, i) => s + (i.price * i.qty), 0);
+      let couponDiscount = 0;
+      if (appliedCoupon) {
+        couponDiscount = appliedCoupon.type === 'PCT' 
+          ? Math.round((sellingTotal * appliedCoupon.val) / 100) 
+          : appliedCoupon.val;
+      }
+      return Math.max(0, sellingTotal - couponDiscount);
+    }
+
+    function togglePayMode(mode) {
+      selectedPayMethod = mode;
+      const upiBox = $('checkoutUpiDetails');
+      if (mode === 'UPI') {
+        upiBox.classList.remove('hidden');
+      } else {
+        upiBox.classList.add('hidden');
+      }
+    }
+
+    function updateCheckoutQrCode(amount) {
+      const upiId = appConfig.sellerUpi;
+      $('checkoutUpiIdText').textContent = upiId;
+      const deepLink = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=DealCartStore&am=${amount}&cu=INR`;
+      $('checkoutDeepLink').href = deepLink;
+      $('checkoutQrImage').src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(deepLink)}`;
+    }
+
+    function checkPincodeService(pin) {
+      const badge = $('pincodeStatusBadge');
+      if (pin.length === 6 && !isNaN(pin)) {
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    async function submitOrder() {
+      const name = $('shipName').value.trim();
+      const phone = $('shipPhone').value.trim();
+      const pin = $('shipPincode').value.trim();
+      const city = $('shipCity').value.trim();
+      const house = $('shipHouse').value.trim();
+      const street = $('shipStreet').value.trim();
+      const utr = $('orderUtrInput').value.trim();
+
+      if (!name || phone.length < 10 || !pin || !house || !street) {
+        showToast("Please fill all required delivery fields", false);
+        return;
+      }
+
+      if (selectedPayMethod === 'UPI' && !utr) {
+        showToast("Please enter 12-digit UPI UTR reference number", false);
+        return;
+      }
+
+      const orderTotal = calculateCurrentGrandTotal();
+      const orderId = 'DC-' + Math.floor(100000 + Math.random() * 900000);
+      const timestamp = new Date().toISOString();
+
+      // Update customer profile
+      customerProfile.name = name;
+      customerProfile.phone = phone;
+      if (!customerProfile.addresses.some(a => a.house === house && a.pincode === pin)) {
+        customerProfile.addresses.unshift({ house, street, city, pincode: pin });
+      }
+      localStorage.setItem(STORAGE_KEYS.CUSTOMER_PROFILE, JSON.stringify(customerProfile));
+
+      // Build Order Object
+      const orderObj = {
+        id: orderId,
+        date: timestamp,
+        customerName: name,
+        customerPhone: phone,
+        address: `${house}, ${street}, ${city} - ${pin}`,
+        items: [...cart],
+        totalAmount: orderTotal,
+        paymentMethod: selectedPayMethod,
+        paymentStatus: selectedPayMethod === 'COD' ? 'Pending COD' : 'UTR Submitted (Verification Pending)',
+        utrNumber: utr || 'N/A',
+        orderStatus: 'Received',
+        courier: null,
+        trackingNumber: null,
+        trackingUrl: null,
+        // Supplier Order Workflow State
+        supplierOrders: cart.map(item => ({
+          productId: item.id,
+          productName: item.name,
+          sku: item.sku,
+          wholesaleCost: item.wholesaleCost || 0,
+          supplierId: item.supplierId || null,
+          supplierStatus: 'Needs Supplier Order',
+          supplierOrderId: null,
+          supplierPaid: false
+        }))
+      };
+
+      // 1. Save to Local Persistence
+      orders.unshift(orderObj);
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+
+      // 2. Synchronize to Supabase if configured (Non-destructive)
+      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+        try {
+          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
+          await client.from('orders').insert([{
+            id: orderObj.id,
+            customer_name: orderObj.customerName,
+            customer_phone: orderObj.customerPhone,
+            delivery_address: orderObj.address,
+            total_amount: orderObj.totalAmount,
+            payment_mode: orderObj.paymentMethod,
+            utr_ref: orderObj.utrNumber,
+            items_json: JSON.stringify(orderObj.items),
+            created_at: timestamp
+          }]);
+        } catch (e) {
+          console.log("Supabase order sync logged locally:", e);
+        }
+      }
+
+      // Empty Cart & Navigate
+      cart = [];
+      localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+      updateBadgeCounts();
+
+      showToast(`Order #${orderId} Placed Successfully! 🎉`);
+      navigateTo('account');
+      switchAccountTab('orders');
+    }
+
+    /* =========================================================================
+       13. CUSTOMER ACCOUNT & ORDER CANCELLATION ENGINE
+       ========================================================================= */
+    function renderAccountView() {
+      $('custAccountName').textContent = customerProfile.name || 'DealCart Customer';
+      $('custAccountPhone').textContent = customerProfile.phone ? `+91 ${customerProfile.phone}` : 'Mobile verified';
+      
+      const supWa = $('supportWhatsAppBtn');
+      const waMsg = encodeURIComponent("Hello DealCart Support, I have an inquiry about my recent order.");
+      supWa.href = `https://wa.me/91${appConfig.sellerPhone.replace(/\D/g,'')}?text=${waMsg}`;
+
+      renderAccountOrdersList();
+      renderAccountAddressesList();
+    }
+
+    function switchAccountTab(tab) {
+      $('accountOrdersSection').classList.toggle('hidden', tab !== 'orders');
+      $('accountAddressesSection').classList.toggle('hidden', tab !== 'addresses');
+      $('accountSupportSection').classList.toggle('hidden', tab !== 'support');
+
+      $('tabBtnOrders').className = `text-xs font-bold px-4 py-2 rounded-lg ${tab === 'orders' ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`;
+      $('tabBtnAddresses').className = `text-xs font-bold px-4 py-2 rounded-lg ${tab === 'addresses' ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`;
+      $('tabBtnSupport').className = `text-xs font-bold px-4 py-2 rounded-lg ${tab === 'support' ? 'bg-brand-navy text-white' : 'text-slate-600 hover:bg-slate-100'}`;
+    }
+
+    function renderAccountOrdersList() {
+      const container = $('accountOrdersSection');
+      if (orders.length === 0) {
+        container.innerHTML = `
+          <div class="bg-white p-8 rounded-2xl border text-center text-slate-500">
+            <div class="text-4xl mb-2">📦</div>
+            <p class="text-xs font-bold">You have no active orders yet.</p>
+            <button onclick="navigateTo('home')" class="mt-3 bg-brand-navy text-brand-gold text-xs font-bold px-4 py-2 rounded-xl">Shop Deals Now</button>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = orders.map(ord => {
+        // Enforce Server/Configured Cancellation Window Rule
+        const orderTime = new Date(ord.date).getTime();
+        const now = Date.now();
+        const diffMinutes = Math.floor((now - orderTime) / (1000 * 60));
+        const canCancel = (diffMinutes <= appConfig.cancelWindowMinutes) && (ord.orderStatus === 'Received' || ord.orderStatus === 'Confirmed');
+
+        return `
+          <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-3">
+            <div class="flex flex-wrap justify-between items-start border-b pb-2 gap-2">
+              <div>
+                <span class="text-xs font-black text-brand-navy">Order #${ord.id}</span>
+                <div class="text-[10px] text-slate-400 font-medium">${new Date(ord.date).toLocaleString('en-IN')}</div>
+              </div>
+              <div class="text-right">
+                <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full ${getStatusBadgeClass(ord.orderStatus)}">
+                  ${ord.orderStatus}
+                </span>
+                <div class="text-xs font-black text-brand-navy mt-0.5">${ru(ord.totalAmount)}</div>
+              </div>
+            </div>
+
+            <!-- Items -->
+            <div class="space-y-1.5">
+              ${ord.items.map(it => `
+                <div class="flex items-center gap-2 text-xs">
+                  <img src="${esc(it.images[0])}" class="w-10 h-10 object-contain rounded bg-slate-50 border p-0.5">
+                  <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800 truncate">${esc(it.name)}</div>
+                    <div class="text-[10px] text-slate-400">${ru(it.price)} × ${it.qty}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+
+            <!-- Tracking Information if Shipped -->
+            ${ord.trackingNumber ? `
+              <div class="bg-blue-50 border border-blue-200 p-2.5 rounded-xl text-xs text-blue-900 space-y-1">
+                <div class="font-bold">🚚 Courier: ${esc(ord.courier || 'Express Surface')}</div>
+                <div>Tracking AWB: <span class="font-mono font-bold">${esc(ord.trackingNumber)}</span></div>
+                ${ord.trackingUrl ? `<a href="${esc(ord.trackingUrl)}" target="_blank" class="text-blue-700 underline font-bold">Track Shipment Live &rarr;</a>` : ''}
+              </div>
+            ` : ''}
+
+            <!-- Bottom Actions -->
+            <div class="flex justify-between items-center pt-2 border-t text-xs">
+              ${canCancel ? `
+                <button onclick="customerCancelOrder('${ord.id}')" class="text-rose-600 font-bold hover:underline">
+                  Cancel Order (${appConfig.cancelWindowMinutes - diffMinutes}m left)
+                </button>
+              ` : `
+                <span class="text-[10px] text-slate-400">
+                  ${ord.orderStatus === 'Cancelled' ? 'Order Cancelled' : 'Cancellation period closed'}
+                </span>
+              `}
+
+              <div class="flex gap-2">
+                <button onclick="reorderItems('${ord.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs">
+                  ↻ Reorder
+                </button>
+                <a href="https://wa.me/91${appConfig.sellerPhone.replace(/\D/g,'')}?text=${encodeURIComponent('Inquiry regarding Order #' + ord.id)}" target="_blank" class="bg-green-100 text-green-800 font-bold px-3 py-1.5 rounded-lg text-xs">
+                  WhatsApp Support
+                </a>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function getStatusBadgeClass(st) {
+      switch(st) {
+        case 'Received': return 'bg-blue-100 text-blue-800';
+        case 'Confirmed': return 'bg-indigo-100 text-indigo-800';
+        case 'Supplier Ordering': return 'bg-amber-100 text-amber-800';
+        case 'Shipped': return 'bg-purple-100 text-purple-800';
+        case 'Delivered': return 'bg-green-100 text-green-800';
+        case 'Cancelled': return 'bg-rose-100 text-rose-800';
+        default: return 'bg-slate-100 text-slate-700';
+      }
+    }
+
+    function customerCancelOrder(orderId) {
+      const ord = orders.find(x => x.id === orderId);
+      if (!ord) return;
+
+      const orderTime = new Date(ord.date).getTime();
+      const diffMinutes = Math.floor((Date.now() - orderTime) / (1000 * 60));
+
+      // Server-side / state enforcement
+      if (diffMinutes > appConfig.cancelWindowMinutes) {
+        showToast("Cancellation period has expired. Please contact support.", false);
+        renderAccountOrdersList();
+        return;
+      }
+
+      ord.orderStatus = 'Cancelled';
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+      showToast(`Order #${orderId} was successfully cancelled`);
+      renderAccountOrdersList();
+    }
+
+    function reorderItems(orderId) {
+      const ord = orders.find(x => x.id === orderId);
+      if (!ord) return;
+      ord.items.forEach(it => addToBag(it.id, it.qty));
+      navigateTo('bag');
+    }
+
+    function renderAccountAddressesList() {
+      const container = $('addressesList');
+      container.innerHTML = customerProfile.addresses.map((a, i) => `
+        <div class="bg-white p-3.5 rounded-xl border border-brand-border space-y-1 text-xs">
+          <div class="font-bold text-slate-800">Address #${i + 1}</div>
+          <p class="text-slate-600">${esc(a.house)}, ${esc(a.street)}, ${esc(a.city)} - ${esc(a.pincode)}</p>
+        </div>
+      `).join('');
+    }
+
+    function addNewAddressPrompt() {
+      const house = prompt("Enter House/Building No:");
+      if (!house) return;
+      const street = prompt("Enter Street/Colony:");
+      const city = prompt("Enter City:");
+      const pin = prompt("Enter Pincode:");
+      if (pin) {
+        customerProfile.addresses.push({ house, street, city, pincode: pin });
+        localStorage.setItem(STORAGE_KEYS.CUSTOMER_PROFILE, JSON.stringify(customerProfile));
+        renderAccountAddressesList();
+        showToast("Address added!");
+      }
+    }
+
+    function promptEditCustomerProfile() {
+      const newName = prompt("Enter your Name:", customerProfile.name);
+      if (newName) customerProfile.name = newName;
+      const newPhone = prompt("Enter 10-digit Phone:", customerProfile.phone);
+      if (newPhone) customerProfile.phone = newPhone;
+      localStorage.setItem(STORAGE_KEYS.CUSTOMER_PROFILE, JSON.stringify(customerProfile));
+      renderAccountView();
+    }
+
+    function customerLogout() {
+      customerProfile = { name: 'Customer', phone: '9650483818', addresses: [] };
+      localStorage.removeItem(STORAGE_KEYS.CUSTOMER_PROFILE);
+      showToast("Session cleared");
+      navigateTo('home');
+    }
+
+    /* =========================================================================
+       14. ADMIN AUTHENTICATION (PASSWORD ONLY & ENCRYPTED HASH)
+       ========================================================================= */
+    function openAdminAuthModal() {
+      $('adminPasswordInput').value = '';
+      $('adminAuthModal').classList.remove('hidden');
+    }
+
+    function closeAdminAuthModal() {
+      $('adminAuthModal').classList.add('hidden');
+    }
+
+    async function verifyAdminPassword() {
+      const entered = $('adminPasswordInput').value.trim();
+      if (!entered) {
+        showToast("Please enter master password", false);
+        return;
+      }
+
+      const inputHash = await hashPassword(entered);
+      const storedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_HASH);
+
+      if (inputHash === storedHash) {
+        isAdminAuthed = true;
+        closeAdminAuthModal();
+        showToast("Admin Authentication Successful! 🔐");
+        navigateTo('admin');
+      } else {
+        showToast("Incorrect Password!", false);
+      }
+    }
+
+    function adminLogout() {
+      isAdminAuthed = false;
+      showToast("Admin session ended");
+      navigateTo('home');
+    }
+
+    function openChangePasswordModal() {
+      $('curPassInput').value = '';
+      $('newPassInput').value = '';
+      $('changePassModal').classList.remove('hidden');
+    }
+
+    function closeChangePasswordModal() {
+      $('changePassModal').classList.add('hidden');
+    }
+
+    async function saveNewAdminPassword() {
+      const cur = $('curPassInput').value.trim();
+      const next = $('newPassInput').value.trim();
+
+      if (next.length < 8) {
+        showToast("New password must be at least 8 characters", false);
+        return;
+      }
+
+      const curHash = await hashPassword(cur);
+      const storedHash = localStorage.getItem(STORAGE_KEYS.ADMIN_HASH);
+
+      if (curHash !== storedHash) {
+        showToast("Current password does not match", false);
+        return;
+      }
+
+      const newHash = await hashPassword(next);
+      localStorage.setItem(STORAGE_KEYS.ADMIN_HASH, newHash);
+      closeChangePasswordModal();
+      showToast("✓ Admin Password Updated Successfully!");
+    }
+
+    /* =========================================================================
+       15. ADMIN DASHBOARD & ANALYTICS
+       ========================================================================= */
+    let salesChartInstance = null;
+    let orderStatusChartInstance = null;
+
+    function renderAdminDashboard() {
+      if (!isAdminAuthed) {
+        navigateTo('home');
+        return;
+      }
+
+      // Calculations
+      const totalSales = orders.filter(o => o.orderStatus !== 'Cancelled').reduce((s, o) => s + o.totalAmount, 0);
+      const activeOrders = orders.filter(o => o.orderStatus !== 'Delivered' && o.orderStatus !== 'Cancelled').length;
+
+      // Wholesale Cost & Realized Profit
+      let totalWholesale = 0;
+      let totalSupplierDues = 0;
+      orders.forEach(o => {
+        if (o.orderStatus !== 'Cancelled') {
+          o.items.forEach(it => {
+            totalWholesale += (it.wholesaleCost || 0) * it.qty;
+          });
+        }
+      });
+
+      const totalRecordedExpenses = expenses.reduce((s, e) => s + e.amount, 0);
+      const estimatedProfit = Math.max(0, totalSales - totalWholesale - totalRecordedExpenses);
+
+      $('statTotalSales').textContent = ru(totalSales);
+      $('statTotalProfit').textContent = ru(estimatedProfit);
+      $('statActiveOrders').textContent = activeOrders;
+      $('statSupplierDues').textContent = ru(totalSupplierDues);
+
+      $('adCountProducts').textContent = products.length;
+      $('adCountOrders').textContent = orders.length;
+
+      // Render Charts
+      initAdminCharts();
+    }
+
+    function initAdminCharts() {
+      const salesCtx = $('salesTrendChart');
+      const statusCtx = $('orderStatusChart');
+      if (!salesCtx || !statusCtx) return;
+
+      if (salesChartInstance) salesChartInstance.destroy();
+      if (orderStatusChartInstance) orderStatusChartInstance.destroy();
+
+      salesChartInstance = new Chart(salesCtx, {
+        type: 'line',
+        data: {
+          labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+          datasets: [{
+            label: 'Sales (₹)',
+            data: [1200, 2400, 1800, 3200, 4100, 3900, 5200],
+            borderColor: '#D4AF37',
+            backgroundColor: 'rgba(212, 175, 55, 0.15)',
+            tension: 0.3,
+            fill: true
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } } }
+      });
+
+      const counts = {
+        Received: orders.filter(o => o.orderStatus === 'Received').length,
+        Confirmed: orders.filter(o => o.orderStatus === 'Confirmed').length,
+        Shipped: orders.filter(o => o.orderStatus === 'Shipped').length,
+        Delivered: orders.filter(o => o.orderStatus === 'Delivered').length,
+        Cancelled: orders.filter(o => o.orderStatus === 'Cancelled').length
+      };
+
+      orderStatusChartInstance = new Chart(statusCtx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(counts),
+          datasets: [{
+            data: Object.values(counts).map(v => v === 0 ? 1 : v),
+            backgroundColor: ['#3B82F6', '#6366F1', '#A855F7', '#10B981', '#EF4444']
+          }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+    }
+
+    function switchAdminTab(panel) {
+      const allPanels = ['dash', 'products', 'bulk', 'history', 'orders', 'suppliers', 'accounting', 'settings'];
+      allPanels.forEach(p => {
+        const el = $('adminPanel-' + p);
+        const tabBtn = $('adTab-' + p);
+        if (el) el.classList.toggle('hidden', p !== panel);
+        if (tabBtn) {
+          if (p === panel) {
+            tabBtn.className = 'text-xs font-black px-3.5 py-2 rounded-xl bg-brand-navy text-brand-gold whitespace-nowrap shadow-sm';
+          } else {
+            tabBtn.className = 'text-xs font-semibold px-3.5 py-2 rounded-xl text-slate-600 hover:bg-slate-200 whitespace-nowrap';
+          }
+        }
+      });
+
+      if (panel === 'products') renderAdminProductsTable();
+      else if (panel === 'history') renderBulkHistoryList();
+      else if (panel === 'orders') renderAdminOrdersTable();
+      else if (panel === 'suppliers') renderAdminSuppliersGrid();
+      else if (panel === 'accounting') renderAdminAccounting();
+      else if (panel === 'settings') renderAdminSettingsUi();
+      else if (panel === 'dash') renderAdminDashboard();
+    }
+
+    /* =========================================================================
+       16. ADMIN PRODUCT MANAGEMENT (ADD, EDIT, ARCHIVE, BULK ACTIONS)
+       ========================================================================= */
+    function renderAdminProductsTable() {
+      const q = ($('adProductSearchInput').value || '').trim().toLowerCase();
+      const st = $('adProductFilterStatus').value;
+
+      let list = [...products];
+      if (st !== 'ALL') list = list.filter(p => p.status === st);
+      if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+
+      const tbody = $('adProductsTableBody');
+      tbody.innerHTML = list.map(p => `
+        <tr class="hover:bg-slate-50 transition ${selectedProductIds.has(p.id) ? 'bg-blue-50/60' : ''}">
+          <td class="p-3">
+            <input type="checkbox" ${selectedProductIds.has(p.id) ? 'checked' : ''} onchange="toggleSelectProduct('${p.id}', this.checked)">
+          </td>
+          <td class="p-3 flex items-center gap-2">
+            <img src="${esc(p.images[0])}" class="w-10 h-10 object-contain rounded bg-slate-100 border p-0.5 shrink-0">
+            <div>
+              <div class="font-bold text-slate-800 line-clamp-1">${esc(p.name)}</div>
+              <div class="text-[10px] text-slate-400 font-medium">${esc(p.category)}</div>
+            </div>
+          </td>
+          <td class="p-3 font-mono font-bold text-slate-600">${esc(p.sku)}</td>
+          <td class="p-3">
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${p.productType === 'SUPPLIER' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}">
+              ${p.productType}
+            </span>
+          </td>
+          <td class="p-3">
+            <div class="font-black text-brand-navy">${ru(price)}</div>
+            <div class="text-[10px] text-slate-400">Wholesale: ${ru(p.wholesaleCost || 0)}</div>
+          </td>
+          <td class="p-3">
+            <span class="font-bold ${p.stock < 5 ? 'text-red-600' : 'text-slate-700'}">${p.stock}</span>
+          </td>
+          <td class="p-3">
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
+              p.status === 'PUBLISHED' ? 'bg-green-100 text-green-800' :
+              p.status === 'DRAFT' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+            }">
+              ${p.status}
+            </span>
+          </td>
+          <td class="p-3 text-right space-x-1">
+            <button onclick="openProductEditModal('${p.id}')" class="p-1 hover:bg-slate-200 rounded text-slate-700 font-bold" title="Edit">✏️</button>
+            <button onclick="confirmSingleProductDelete('${p.id}')" class="p-1 hover:bg-rose-100 rounded text-rose-600 font-bold" title="Archive / Delete">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+
+      $('adCountProducts').textContent = products.length;
+      updateBulkActionBar();
+    }
+
+    function toggleSelectProduct(id, checked) {
+      if (checked) selectedProductIds.add(id);
+      else selectedProductIds.delete(id);
+      updateBulkActionBar();
+      renderAdminProductsTable();
+    }
+
+    function toggleSelectAllProducts(checked) {
+      if (checked) {
+        products.forEach(p => selectedProductIds.add(p.id));
+      } else {
+        selectedProductIds.clear();
+      }
+      updateBulkActionBar();
+      renderAdminProductsTable();
+    }
+
+    function updateBulkActionBar() {
+      const bar = $('bulkActionsRow');
+      const count = selectedProductIds.size;
+      $('bulkSelectedCount').textContent = count;
+      bar.classList.toggle('hidden', count === 0);
+    }
+
+    function bulkChangeStatus(newStatus) {
+      selectedProductIds.forEach(id => {
+        const p = products.find(x => x.id === id);
+        if (p) p.status = newStatus;
+      });
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      showToast(`Updated ${selectedProductIds.size} products to ${newStatus}`);
+      selectedProductIds.clear();
+      renderAdminProductsTable();
+    }
+
+    function bulkDeleteConfirmed() {
+      if (!confirm(`Are you sure you want to permanently delete ${selectedProductIds.size} selected products? This will not affect other products.`)) return;
+      products = products.filter(p => !selectedProductIds.has(p.id));
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      selectedProductIds.clear();
+      showToast("Selected products deleted");
+      renderAdminProductsTable();
+    }
+
+    function confirmSingleProductDelete(id) {
+      const p = products.find(x => x.id === id);
+      if (!p) return;
+      const choice = confirm(`Archive "${p.name}"? (Click OK to Archive safely, or Cancel to leave intact)`);
+      if (choice) {
+        p.status = 'ARCHIVED';
+        localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+        showToast("Product archived");
+        renderAdminProductsTable();
+      }
+    }
+
+    function openProductEditModal(prodId) {
+      const catSelect = $('editProdCat');
+      catSelect.innerHTML = ALL_CATEGORIES.filter(c => c !== 'All').map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const supSelect = $('editProdSupplierSelect');
+      supSelect.innerHTML = '<option value="">None / Own Inventory</option>' + suppliers.map(s => `
+        <option value="${s.id}">${esc(s.name)}</option>
+      `).join('');
+
+      if (prodId) {
+        const p = products.find(x => x.id === prodId);
+        $('productEditModalTitle').textContent = "Edit Product: " + p.name;
+        $('editProdId').value = p.id;
+        $('editProdName').value = p.name;
+        $('editProdSku').value = p.sku;
+        $('editProdCat').value = p.category;
+        $('editProdPrice').value = p.price;
+        $('editProdMrp').value = p.mrp;
+        $('editProdStock').value = p.stock;
+        $('editProdWholesale').value = p.wholesaleCost || 0;
+        $('editProdSupplierSelect').value = p.supplierId || '';
+        $('editProdSupplierUrl').value = p.supplierUrl || '';
+        $('editProdImages').value = p.images.join(', ');
+        $('editProdDesc').value = p.description || '';
+        $('editProdCod').checked = p.cod;
+        $('editProdPublished').checked = (p.status === 'PUBLISHED');
+
+        const isSupplier = p.productType === 'SUPPLIER';
+        document.querySelector(`input[name="editProdType"][value="${isSupplier ? 'SUPPLIER' : 'OWN'}"]`).checked = true;
+        toggleSupplierFields(isSupplier);
+      } else {
+        $('productEditModalTitle').textContent = "Add Single Product";
+        $('editProdId').value = '';
+        $('editProdName').value = '';
+        $('editProdSku').value = 'DC-SKU-' + Math.floor(1000 + Math.random() * 9000);
+        $('editProdPrice').value = '';
+        $('editProdMrp').value = '';
+        $('editProdStock').value = '25';
+        $('editProdWholesale').value = '';
+        $('editProdSupplierSelect').value = '';
+        $('editProdSupplierUrl').value = '';
+        $('editProdImages').value = 'https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=800';
+        $('editProdDesc').value = '';
+        $('editProdCod').checked = true;
+        $('editProdPublished').checked = true;
+        toggleSupplierFields(true);
+      }
+
+      calculateMarginPreview();
+      $('productEditModal').classList.remove('hidden');
+    }
+
+    function closeProductEditModal() {
+      $('productEditModal').classList.add('hidden');
+    }
+
+    function toggleSupplierFields(isSup) {
+      $('supplierSpecificFields').classList.toggle('hidden', !isSup);
+    }
+
+    function calculateMarginPreview() {
+      const price = parseMoney($('editProdPrice').value);
+      const wholesale = parseMoney($('editProdWholesale').value);
+      const alertBox = $('marginPreviewAlert');
+
+      if (price > 0 && wholesale > 0) {
+        const margin = price - wholesale;
+        const pct = Math.round((margin / price) * 100);
+        alertBox.classList.remove('hidden');
+
+        if (pct < 15) {
+          alertBox.className = "p-2 rounded-xl text-xs font-bold bg-rose-100 text-rose-800 block";
+          alertBox.textContent = `⚠️ LOW MARGIN WARNING: Expected profit is only ₹${margin} (${pct}%). Consider adjusting price.`;
+        } else {
+          alertBox.className = "p-2 rounded-xl text-xs font-bold bg-green-100 text-green-800 block";
+          alertBox.textContent = `✓ Healthy Margin: Estimated Profit ₹${margin} per sale (${pct}%).`;
+        }
+      } else {
+        alertBox.classList.add('hidden');
+      }
+    }
+
+    async function saveProductModalData() {
+      const id = $('editProdId').value || ('DC-' + Date.now());
+      const name = $('editProdName').value.trim();
+      const sku = $('editProdSku').value.trim();
+      const cat = $('editProdCat').value;
+      const price = parseMoney($('editProdPrice').value);
+      const mrp = parseMoney($('editProdMrp').value || price);
+      const stock = Number($('editProdStock').value || 0);
+      const wholesale = parseMoney($('editProdWholesale').value);
+      const supId = $('editProdSupplierSelect').value || null;
+      const supUrl = $('editProdSupplierUrl').value.trim() || null;
+      const rawImgs = $('editProdImages').value.split(',').map(s => s.trim()).filter(Boolean);
+      const desc = $('editProdDesc').value.trim();
+      const cod = $('editProdCod').checked;
+      const isPub = $('editProdPublished').checked;
+      const prodType = document.querySelector('input[name="editProdType"]:checked').value;
+
+      if (!name || !sku || price <= 0) {
+        showToast("Please provide product name, SKU and selling price", false);
+        return;
+      }
+
+      const existingIndex = products.findIndex(x => x.id === id);
+      const productObj = {
+        id,
+        sku,
+        name,
+        category: cat,
+        price,
+        mrp,
+        wholesaleCost: wholesale,
+        stock,
+        images: normalizeImages(rawImgs),
+        description: desc,
+        cod,
+        status: isPub ? 'PUBLISHED' : 'DRAFT',
+        productType: prodType,
+        supplierId: supId,
+        supplierUrl: supUrl,
+        rating: 4.8,
+        ratingCount: 10
+      };
+
+      if (existingIndex >= 0) {
+        products[existingIndex] = { ...products[existingIndex], ...productObj };
+        showToast("Product updated successfully");
+      } else {
+        products.unshift(productObj);
+        showToast("Product created successfully");
+      }
+
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      closeProductEditModal();
+      renderAdminProductsTable();
+      renderHomeView();
+
+      // Also persist the catalog record to Supabase when the configured key allows writes,
+      // so a product published on the admin device is visible to customers on other devices.
+      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+        try {
+          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
+          await client.from('products').upsert([{
+            id: productObj.id,
+            sku: productObj.sku,
+            name: productObj.name,
+            category: productObj.category,
+            price: productObj.price,
+            mrp: productObj.mrp,
+            wholesale: productObj.wholesaleCost,
+            stock: productObj.stock,
+            image_url: productObj.images[0],
+            description: productObj.description,
+            cod: productObj.cod,
+            status: productObj.status
+          }], { onConflict: 'id' });
+        } catch (e) {
+          console.log('Supabase product sync logged locally:', e);
+        }
+      }
+    }
+
+    /* =========================================================================
+       17. BULK CSV IMPORTER WITH MODES 1 & 2 + DUPLICATE PROTECTION
+       ========================================================================= */
+    let parsedCsvRows = [];
+
+    function handleCsvFileSelected(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      $('csvFileStatus').textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+      const reader = new FileReader();
+      reader.onload = function(evt) {
+        processCsvRawText(evt.target.result, file.name);
+      };
+      reader.readAsText(file);
+    }
+
+    function processCsvRawText(csvText, fileName) {
+      const lines = csvText.split(/\r\n|\n/).filter(line => line.trim().length > 0);
+      if (lines.length < 2) {
+        showToast("CSV file is empty or missing headers", false);
+        return;
+      }
+
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const rows = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        // Basic CSV column parser handling quotes
+        const rawCols = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(c => c.trim().replace(/^"|"$/g, ''));
+        if (rawCols.length < 3) continue;
+
+        const rowObj = {};
+        headers.forEach((h, idx) => { rowObj[h] = rawCols[idx] || ''; });
+        rows.push(rowObj);
+      }
+
+      parsedCsvRows = rows;
+      const selectedMode = document.querySelector('input[name="importMode"]:checked').value;
+
+      if (selectedMode === 'SKIP_REVIEW') {
+        // MODE 1: Fast direct upload as DRAFT
+        executeDirectDraftImport(fileName);
+      } else {
+        // MODE 2: Render review table
+        renderCsvReviewStage(fileName);
+      }
+    }
+
+    function executeDirectDraftImport(fileName) {
+      let createdCount = 0;
+      let duplicateCount = 0;
+
+      parsedCsvRows.forEach((row, i) => {
+        const sku = row.sku || row['variant sku'] || ('IMP-SKU-' + (i + 1));
+        const pId = row['product id'] || ('DC-IMP-' + Math.floor(10000 + Math.random() * 90000));
+
+        // DUPLICATE PROTECTION RULE
+        const isDuplicate = products.some(p => p.sku.toLowerCase() === sku.toLowerCase() || p.id === pId);
+        if (isDuplicate) {
+          duplicateCount++;
+          return; // Skip duplicate by default
+        }
+
+        const newProd = {
+          id: pId,
+          sku: sku,
+          name: row['product name'] || row.title || row.name || 'Imported Product',
+          category: row.category || 'Other',
+          price: Number(row['selling price'] || row.price || 299),
+          mrp: Number(row.mrp || 599),
+          wholesaleCost: Number(row['wholesale price'] || row.wholesale || 0),
+          stock: Number(row.stock || 25),
+          images: [row['image url'] || row.image || 'https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'],
+          description: row.description || 'Imported via DealCart bulk engine.',
+          cod: row.cod !== 'false',
+          status: 'DRAFT', // Always DRAFT in Mode 1 for safety
+          productType: 'SUPPLIER',
+          supplierId: null,
+          rating: 4.8,
+          ratingCount: 5
+        };
+
+        products.unshift(newProd);
+        createdCount++;
+      });
+
+      // Record Audit Batch History
+      recordBatchHistory(fileName, parsedCsvRows.length, createdCount, duplicateCount, 'SKIP_REVIEW');
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      showToast(`✓ Imported ${createdCount} products as DRAFTS. (${duplicateCount} duplicates skipped)`);
+      switchAdminTab('products');
+    }
+
+    function renderCsvReviewStage(fileName) {
+      $('csvReviewStage').classList.remove('hidden');
+      $('csvReviewCount').textContent = parsedCsvRows.length;
+
+      const tbody = $('csvReviewTbody');
+      tbody.innerHTML = parsedCsvRows.map((r, idx) => {
+        const sku = r.sku || 'SKU-' + (idx + 1);
+        const name = r['product name'] || r.title || 'Untitled';
+        const price = r['selling price'] || r.price || 0;
+        const wholesale = r['wholesale price'] || r.wholesale || 0;
+        const img = r['image url'] || r.image || '';
+        const isDuplicate = products.some(p => p.sku.toLowerCase() === sku.toLowerCase());
+
+        return `
+          <tr id="reviewRow_${idx}" class="hover:bg-slate-50 text-xs">
+            <td class="p-2">
+              <img src="${esc(img || 'https://placehold.co/80x80?text=No+Img')}" class="w-8 h-8 object-contain rounded border">
+            </td>
+            <td class="p-2 font-bold">${esc(name)}</td>
+            <td class="p-2 font-mono">${esc(sku)}</td>
+            <td class="p-2 font-black">${ru(price)}</td>
+            <td class="p-2 text-slate-500">${ru(wholesale)}</td>
+            <td class="p-2">
+              ${isDuplicate ? '<span class="text-rose-600 font-bold bg-rose-50 px-1 rounded">⚠️ Duplicate SKU</span>' : '<span class="text-green-700 font-bold">✓ Ready</span>'}
+            </td>
+            <td class="p-2">
+              <button onclick="removeReviewRow(${idx})" class="text-rose-600 hover:underline font-bold">Remove</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function removeReviewRow(idx) {
+      const rowEl = $('reviewRow_' + idx);
+      if (rowEl) rowEl.remove();
+      parsedCsvRows[idx] = null;
+    }
+
+    function confirmAndExecuteImport() {
+      const validRows = parsedCsvRows.filter(Boolean);
+      let count = 0;
+
+      validRows.forEach((row, i) => {
+        const sku = row.sku || ('SKU-' + Date.now() + '-' + i);
+        if (products.some(p => p.sku.toLowerCase() === sku.toLowerCase())) return;
+
+        products.unshift({
+          id: 'DC-IMP-' + Math.floor(100000 + Math.random() * 900000),
+          sku: sku,
+          name: row['product name'] || row.title || 'Product',
+          category: row.category || 'Other',
+          price: Number(row['selling price'] || row.price || 299),
+          mrp: Number(row.mrp || 599),
+          wholesaleCost: Number(row['wholesale price'] || 0),
+          stock: Number(row.stock || 20),
+          images: [row['image url'] || 'https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'],
+          description: row.description || '',
+          cod: true,
+          status: 'DRAFT',
+          productType: 'SUPPLIER',
+          rating: 4.8,
+          ratingCount: 0
+        });
+        count++;
+      });
+
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      showToast(`Imported ${count} items successfully!`);
+      $('csvReviewStage').classList.add('hidden');
+      switchAdminTab('products');
+    }
+
+    function recordBatchHistory(fileName, total, success, dup, mode) {
+      const batchObj = {
+        id: 'BATCH-' + Date.now(),
+        fileName,
+        date: new Date().toLocaleString('en-IN'),
+        totalRows: total,
+        successful: success,
+        duplicates: dup,
+        mode
+      };
+      batchHistory.unshift(batchObj);
+      localStorage.setItem(STORAGE_KEYS.BATCH_HISTORY, JSON.stringify(batchHistory));
+    }
+
+    function renderBulkHistoryList() {
+      const container = $('bulkHistoryList');
+      if (batchHistory.length === 0) {
+        container.innerHTML = '<div class="text-xs text-slate-500 py-4 text-center">No past bulk imports recorded yet.</div>';
+        return;
+      }
+
+      container.innerHTML = batchHistory.map(b => `
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex justify-between items-center text-xs">
+          <div>
+            <div class="font-black text-brand-navy">${esc(b.fileName)}</div>
+            <div class="text-[10px] text-slate-400">${esc(b.date)} • Mode: ${esc(b.mode)}</div>
+            <div class="mt-1 flex gap-2 text-[10px]">
+              <span class="text-green-700 font-bold">✓ ${b.successful} Created</span>
+              <span class="text-amber-700 font-bold">⚠️ ${b.duplicates} Duplicates Skipped</span>
+            </div>
+          </div>
+          <span class="text-xs font-black text-slate-400">Total ${b.totalRows} Rows</span>
+        </div>
+      `).join('');
+    }
+
+    function downloadSampleCsvTemplate() {
+      const csvContent = "data:text/csv;charset=utf-8," + 
+        "SKU,Product Name,Category,Selling Price,MRP,Wholesale Price,Stock,Image URL,Description,COD\n" +
+        "DC-DEMO-01,Handcrafted Ethnic Kurti Set,Women,599,1499,380,30,https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=800,Pure Cotton Ethnic Wear,true\n" +
+        "DC-DEMO-02,Premium Leather Loafers,Footwear,585,1299,370,40,https://images.unsplash.com/photo-1533867617858-e7b97e060509?w=800,Comfort Loafers,true";
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "DealCart_Bulk_Import_Template.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* =========================================================================
+       18. ADMIN RESELLER ORDERS & SUPPLIER FULFILLMENT WORKFLOW
+       ========================================================================= */
+    function renderAdminOrdersTable() {
+      const container = $('adOrdersCardsContainer');
+      const st = $('adOrderFilterStatus').value;
+
+      let list = [...orders];
+      if (st !== 'ALL') list = list.filter(o => o.orderStatus === st);
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="bg-white p-6 rounded-2xl border text-center text-xs text-slate-500">No orders matching criteria.</div>';
+        return;
+      }
+
+      container.innerHTML = list.map(o => `
+        <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-3">
+          <!-- Top Row -->
+          <div class="flex flex-wrap justify-between items-start border-b pb-2 gap-2">
+            <div>
+              <span class="text-xs font-black text-brand-navy">Order #${o.id}</span>
+              <span class="text-[10px] text-slate-400 ml-2">${new Date(o.date).toLocaleString('en-IN')}</span>
+              <div class="text-xs font-bold text-slate-700 mt-1">👤 ${esc(o.customerName)} (${esc(o.customerPhone)})</div>
+              <div class="text-[11px] text-slate-500">📍 ${esc(o.address)}</div>
+            </div>
+
+            <div class="text-right space-y-1">
+              <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full ${getStatusBadgeClass(o.orderStatus)}">
+                ${o.orderStatus}
+              </span>
+              <div class="text-sm font-black text-brand-navy">${ru(o.totalAmount)}</div>
+              <div class="text-[10px] font-bold text-slate-600">Pay: ${o.paymentMethod}</div>
+              ${o.utrNumber !== 'N/A' ? `<div class="text-[9px] font-mono text-blue-700 bg-blue-50 px-1 py-0.5 rounded">UTR: ${esc(o.utrNumber)}</div>` : ''}
+            </div>
+          </div>
+
+          <!-- Items with Reseller Wholesale Fulfillment Cards -->
+          <div class="space-y-2">
+            <h5 class="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">Order Items & Supplier Actions:</h5>
+            ${o.items.map((it, idx) => {
+              const sup = suppliers.find(s => s.id === it.supplierId);
+              return `
+                <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
+                  <div class="flex items-center gap-2">
+                    <img src="${esc(it.images[0])}" class="w-10 h-10 object-contain rounded bg-white border p-0.5">
+                    <div>
+                      <div class="font-bold text-slate-800">${esc(it.name)} (x${it.qty})</div>
+                      <div class="text-[10px] text-slate-500 font-mono">SKU: ${esc(it.sku)} • Wholesale: ${ru(it.wholesaleCost || 0)}</div>
+                    </div>
+                  </div>
+
+                  <!-- Reseller Supplier Direct Buttons -->
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    ${sup ? `
+                      <span class="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded">
+                        Wholesaler: ${esc(sup.name)}
+                      </span>
+                      ${sup.phone ? `
+                        <a href="https://wa.me/91${sup.phone.replace(/\D/g,'')}?text=${encodeURIComponent('DealCart Wholesale Order for SKU: ' + it.sku + ' x' + it.qty + ' - Delivery Address: ' + o.address)}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] px-2.5 py-1 rounded shadow">
+                          💬 Supplier WhatsApp
+                        </a>
+                      ` : ''}
+                      ${it.supplierUrl ? `
+                        <a href="${esc(it.supplierUrl)}" target="_blank" class="bg-brand-navy hover:bg-brand-navylight text-brand-gold font-bold text-[10px] px-2.5 py-1 rounded shadow">
+                          🔗 Wholesaler Item
+                        </a>
+                      ` : ''}
+                    ` : '<span class="text-[10px] text-slate-400 font-semibold">Own Stock Fulfillment</span>'}
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Manage Status & Dispatch Tracking -->
+          <div class="bg-blue-50/50 p-3 rounded-xl border border-blue-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-700">Change Status:</span>
+              <select onchange="updateOrderStatus('${o.id}', this.value)" class="p-1.5 rounded-lg border border-slate-300 font-bold">
+                <option value="Received" ${o.orderStatus==='Received'?'selected':''}>Received</option>
+                <option value="Confirmed" ${o.orderStatus==='Confirmed'?'selected':''}>Confirmed</option>
+                <option value="Supplier Ordering" ${o.orderStatus==='Supplier Ordering'?'selected':''}>Supplier Ordering</option>
+                <option value="Shipped" ${o.orderStatus==='Shipped'?'selected':''}>Shipped</option>
+                <option value="Delivered" ${o.orderStatus==='Delivered'?'selected':''}>Delivered</option>
+                <option value="Cancelled" ${o.orderStatus==='Cancelled'?'selected':''}>Cancelled</option>
+              </select>
+            </div>
+
+            <!-- Tracking Injection -->
+            <div class="flex items-center gap-2">
+              <button onclick="promptTrackingInfo('${o.id}')" class="bg-brand-navy text-white font-bold px-3 py-1.5 rounded-lg text-xs">
+                ${o.trackingNumber ? 'Update Tracking: ' + o.trackingNumber : '+ Add Courier Tracking'}
+              </button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function updateOrderStatus(orderId, newStatus) {
+      const ord = orders.find(x => x.id === orderId);
+      if (!ord) return;
+      ord.orderStatus = newStatus;
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+      showToast(`Order #${orderId} marked as ${newStatus}`);
+      renderAdminOrdersTable();
+    }
+
+    function promptTrackingInfo(orderId) {
+      const ord = orders.find(x => x.id === orderId);
+      if (!ord) return;
+
+      const courier = prompt("Enter Courier Name (e.g. DTDC, BlueDart, Delhivery):", ord.courier || "Delhivery");
+      if (!courier) return;
+      const awb = prompt("Enter Tracking AWB Number:", ord.trackingNumber || "");
+      if (!awb) return;
+      const url = prompt("Enter Tracking Tracking URL (optional):", ord.trackingUrl || `https://www.delhivery.com/track/package/${awb}`);
+
+      ord.courier = courier;
+      ord.trackingNumber = awb;
+      ord.trackingUrl = url;
+      ord.orderStatus = 'Shipped';
+
+      localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
+      showToast("Tracking updated and order marked Shipped!");
+      renderAdminOrdersTable();
+    }
+
+    function exportOrdersToCsv() {
+      if (orders.length === 0) return showToast("No orders to export", false);
+      let csv = "Order ID,Date,Customer,Phone,Address,Total,Payment,Status,UTR\n";
+      orders.forEach(o => {
+        csv += `"${o.id}","${o.date}","${o.customerName}","${o.customerPhone}","${o.address}",${o.totalAmount},"${o.paymentMethod}","${o.orderStatus}","${o.utrNumber}"\n`;
+      });
+      const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csv);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `DealCart_Orders_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* =========================================================================
+       19. SUPPLIERS DIRECTORY & CRUD
+       ========================================================================= */
+    function renderAdminSuppliersGrid() {
+      const grid = $('suppliersCardsGrid');
+      grid.innerHTML = suppliers.map(s => `
+        <div class="bg-white p-4 rounded-2xl border border-brand-border shadow-sm space-y-2 text-xs">
+          <div class="flex justify-between items-start">
+            <h4 class="font-black text-brand-navy text-sm">${esc(s.name)}</h4>
+            <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${s.fulfillmentMode === 'DROPSHIP' ? 'bg-green-100 text-green-800' : 'bg-slate-100 text-slate-700'}">
+              ${esc(s.fulfillmentMode)}
+            </span>
+          </div>
+          <div class="text-slate-600">👤 Contact: ${esc(s.contactPerson || 'N/A')}</div>
+          <div class="text-slate-600">📞 Phone: ${esc(s.phone)}</div>
+          ${s.website ? `<a href="${esc(s.website)}" target="_blank" class="text-blue-600 underline font-bold block">🌐 Portal</a>` : ''}
+          <p class="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-lg">${esc(s.notes || 'No notes')}</p>
+          <div class="flex gap-2 pt-2 border-t">
+            <button onclick="openSupplierModal('${s.id}')" class="flex-1 bg-slate-100 font-bold py-1.5 rounded-lg text-slate-700">Edit</button>
+            <button onclick="deleteSupplier('${s.id}')" class="px-3 text-rose-600 font-bold">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function openSupplierModal(supId) {
+      if (supId) {
+        const s = suppliers.find(x => x.id === supId);
+        $('supplierModalTitle').textContent = "Edit Supplier";
+        $('editSupId').value = s.id;
+        $('supName').value = s.name;
+        $('supContact').value = s.contactPerson || '';
+        $('supPhone').value = s.phone;
+        $('supWebsite').value = s.website || '';
+        $('supMode').value = s.fulfillmentMode;
+        $('supNotes').value = s.notes || '';
+      } else {
+        $('supplierModalTitle').textContent = "Add Wholesaler / Supplier";
+        $('editSupId').value = '';
+        $('supName').value = '';
+        $('supContact').value = '';
+        $('supPhone').value = '';
+        $('supWebsite').value = '';
+        $('supMode').value = 'DROPSHIP';
+        $('supNotes').value = '';
+      }
+      $('supplierModal').classList.remove('hidden');
+    }
+
+    function closeSupplierModal() {
+      $('supplierModal').classList.add('hidden');
+    }
+
+    function saveSupplierData() {
+      const id = $('editSupId').value || ('SUP-' + Date.now());
+      const name = $('supName').value.trim();
+      const contact = $('supContact').value.trim();
+      const phone = $('supPhone').value.trim();
+      const web = $('supWebsite').value.trim();
+      const mode = $('supMode').value;
+      const notes = $('supNotes').value.trim();
+
+      if (!name || !phone) return showToast("Enter Supplier name and phone", false);
+
+      const sObj = { id, name, contactPerson: contact, phone, website: web, fulfillmentMode: mode, notes };
+      const idx = suppliers.findIndex(x => x.id === id);
+      if (idx >= 0) suppliers[idx] = sObj;
+      else suppliers.push(sObj);
+
+      localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(suppliers));
+      closeSupplierModal();
+      showToast("Supplier details saved");
+      renderAdminSuppliersGrid();
+    }
+
+    function deleteSupplier(id) {
+      if (!confirm("Are you sure you want to remove this supplier?")) return;
+      suppliers = suppliers.filter(x => x.id !== id);
+      localStorage.setItem(STORAGE_KEYS.SUPPLIERS, JSON.stringify(suppliers));
+      renderAdminSuppliersGrid();
+      showToast("Supplier removed");
+    }
+
+    /* =========================================================================
+       20. PROFIT, EXPENSES & SETTINGS
+       ========================================================================= */
+    function renderAdminAccounting() {
+      const gross = orders.filter(o => o.orderStatus !== 'Cancelled').reduce((s, o) => s + o.totalAmount, 0);
+      let totalWholesale = 0;
+      orders.forEach(o => {
+        if (o.orderStatus !== 'Cancelled') {
+          o.items.forEach(it => { totalWholesale += (it.wholesaleCost || 0) * it.qty; });
+        }
+      });
+
+      const expTotal = expenses.reduce((s, e) => s + e.amount, 0);
+      const netProfit = gross - totalWholesale - expTotal;
+
+      $('accGrossSales').textContent = ru(gross);
+      $('accTotalExpenses').textContent = ru(totalWholesale + expTotal);
+      $('accNetProfit').textContent = ru(netProfit);
+
+      $('expenseLogsList').innerHTML = expenses.map(e => `
+        <div class="flex justify-between items-center p-2 rounded-lg bg-slate-50 border">
+          <div>
+            <span class="font-bold text-slate-800">${esc(e.category)}</span>
+            <span class="text-[10px] text-slate-400 ml-2">${esc(e.note || '')}</span>
+          </div>
+          <span class="font-black text-rose-600">- ${ru(e.amount)}</span>
+        </div>
+      `).join('') || '<div class="text-slate-400">No expenses recorded yet.</div>';
+    }
+
+    function recordNewExpense() {
+      const cat = $('expCategory').value.trim();
+      const amt = Number($('expAmount').value || 0);
+      const note = $('expNote').value.trim();
+
+      if (!cat || amt <= 0) return showToast("Enter expense category and amount", false);
+
+      expenses.unshift({ id: 'EXP-' + Date.now(), category: cat, amount: amt, note, date: new Date().toISOString() });
+      localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(expenses));
+      $('expCategory').value = '';
+      $('expAmount').value = '';
+      $('expNote').value = '';
+      showToast("Expense logged");
+      renderAdminAccounting();
+    }
+
+    function renderAdminSettingsUi() {
+      $('cfgSellerPhone').value = appConfig.sellerPhone;
+      $('cfgSellerUpi').value = appConfig.sellerUpi;
+      $('cfgCancelWindow').value = String(appConfig.cancelWindowMinutes);
+      updateMasterCodButton();
+    }
+
+    function toggleMasterCOD() {
+      appConfig.masterCodEnabled = !appConfig.masterCodEnabled;
+      updateMasterCodButton();
+      localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(appConfig));
+      showToast(`Master COD is now ${appConfig.masterCodEnabled ? 'ENABLED' : 'DISABLED'}`);
+    }
+
+    function updateMasterCodButton() {
+      const btn = $('masterCodToggleBtn');
+      if (appConfig.masterCodEnabled) {
+        btn.textContent = "COD: ENABLED";
+        btn.className = "px-4 py-2 rounded-xl text-xs font-black text-white bg-green-600 shadow-sm";
+      } else {
+        btn.textContent = "COD: DISABLED";
+        btn.className = "px-4 py-2 rounded-xl text-xs font-black text-white bg-rose-600 shadow-sm";
+      }
+    }
+
+    function saveAdminSettings() {
+      appConfig.sellerPhone = $('cfgSellerPhone').value.trim();
+      appConfig.sellerUpi = $('cfgSellerUpi').value.trim();
+      appConfig.cancelWindowMinutes = Number($('cfgCancelWindow').value || 60);
+
+      localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(appConfig));
+      showToast("Store settings saved successfully!");
+    }
+
+    function downloadDealCartSettingsBackup() {
+      try {
+        // Read directly from this browser's current origin storage so the backup
+        // captures saved settings, not just the in-memory defaults.
+        const rawConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
+        const config = rawConfig ? JSON.parse(rawConfig) : { ...appConfig };
+        const adminHash = localStorage.getItem(STORAGE_KEYS.ADMIN_HASH);
+        const backup = {
+          format: 'DEALCART_SETTINGS_BACKUP',
+          version: 1,
+          createdAt: new Date().toISOString(),
+          settings: {
+            config,
+            adminPasswordHash: adminHash
+          }
+        };
+        const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `DealCart-Settings-Backup-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast('Settings backup downloaded. Keep this file private and safe.');
+      } catch (e) {
+        console.error('DealCart settings backup failed', e);
+        showToast('Backup failed. Please try again.', false);
+      }
+    }
+
+    async function restoreDealCartSettingsBackup() {
+      const input = $('dealCartSettingsRestoreFile');
+      const file = input && input.files && input.files[0];
+      if (!file) { showToast('Please choose a DealCart settings backup JSON file.', false); return; }
+      try {
+        const backup = JSON.parse(await file.text());
+        if (!backup || backup.format !== 'DEALCART_SETTINGS_BACKUP' || !backup.settings || typeof backup.settings !== 'object') {
+          showToast('This is not a valid DealCart settings backup.', false);
+          return;
+        }
+        const incomingConfig = backup.settings.config;
+        if (!incomingConfig || typeof incomingConfig !== 'object' || Array.isArray(incomingConfig)) {
+          showToast('Backup does not contain valid store settings.', false);
+          return;
+        }
+        const confirmed = confirm('Restore settings from this backup? Current store configuration and Admin password hash will be replaced by the backup values. Products, customers, and orders will not be changed.');
+        if (!confirmed) return;
+        const mergedConfig = { ...DEFAULT_CONFIG, ...incomingConfig };
+        localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(mergedConfig));
+        if (typeof backup.settings.adminPasswordHash === 'string' && backup.settings.adminPasswordHash) {
+          localStorage.setItem(STORAGE_KEYS.ADMIN_HASH, backup.settings.adminPasswordHash);
+        }
+        appConfig = mergedConfig;
+        renderAdminSettingsUi();
+        input.value = '';
+        showToast('Settings restored. Please verify UPI, WhatsApp, COD and cancellation settings.');
+      } catch (e) {
+        console.error('DealCart settings restore failed', e);
+        showToast('Could not read this backup file.', false);
+      }
+    }
+
+    function renderCategoriesView() {
+      $('fullCategoriesGrid').innerHTML = ALL_CATEGORIES.filter(c => c !== 'All').map(c => `
+        <div onclick="filterCategory('${c}')" class="bg-white p-5 rounded-2xl border border-brand-border shadow-sm text-center cursor-pointer hover:border-brand-gold hover:shadow-md transition">
+          <div class="text-3xl mb-2">${c === 'Footwear' ? '👞' : c === 'Women' ? '👗' : c === 'Puja Items' ? '🪔' : '🛍️'}</div>
+          <h3 class="text-xs font-black text-brand-navy">${c}</h3>
+          <span class="text-[10px] text-slate-400 font-bold">${products.filter(p => p.category === c).length} Products</span>
+        </div>
+      `).join('');
+    }
+
+    /* =========================================================================
+       21. BOOTSTRAP APP
+       ========================================================================= */
+    window.addEventListener('DOMContentLoaded', async () => {
+      await initAdminSecurity();
+      setupPwaManifest();
+      await loadInitialData();
+      populateFilterCategoriesDropdown();
+      renderHomeView();
+
+      // Dismiss Splash smoothly
+      setTimeout(() => {
+        const splash = $('splashScreen');
+        splash.classList.add('opacity-0');
+        setTimeout(() => splash.remove(), 500);
+      }, 700);
+    });
+  </script>
+</body>
+</html>
