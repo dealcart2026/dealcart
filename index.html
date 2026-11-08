@@ -3716,6 +3716,44 @@
     }
   }, true);
 </script>
-  
+  <script>
+  window._dcRealProducts = [];
+  (function() {
+    const origFetch = window.fetch;
+    window.fetch = async function(...args) {
+      const response = await origFetch.apply(this, args);
+      try {
+        const clone = response.clone();
+        const data = await clone.json();
+        if (Array.isArray(data) && data.length > 0 && (data[0].price !== undefined || data[0].selling_price !== undefined || data[0].name !== undefined)) {
+          window._dcRealProducts = data;
+          window.allProducts = data;
+        }
+      } catch (e) {}
+      return response;
+    };
+  })();
+
+  // कार्ड के अंदर असली नाम और इमेज से असली डेटाबेस प्रोडक्ट ढूँढने वाला सुधार
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('button')) return;
+    const card = e.target.closest('#trendingGrid > div, #bestSellerGrid > div, #newArrivalsGrid > div, #searchGrid > div, #wishlistGrid > div');
+    if (!card || !window._dcRealProducts.length) return;
+
+    const cardImg = card.querySelector('img')?.src || '';
+    const cardText = card.textContent || '';
+
+    const matched = window._dcRealProducts.find(p => {
+      const pName = (p.name || p.title || '').trim();
+      const pImgs = String(p.image_url || p.images || p.image || '');
+      return (cardImg && pImgs.includes(cardImg)) || (pName && cardText.includes(pName));
+    });
+
+    if (matched) {
+      setTimeout(() => openDcProductModal(matched), 10);
+    }
+  }, true);
+</script>
+
 </body>
 </html>
