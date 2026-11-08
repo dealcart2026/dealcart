@@ -3556,5 +3556,126 @@
       }, 700);
     });
   </script>
+  <!-- ==================== PRODUCT DETAIL & GALLERY MODAL ==================== -->
+<div id="dcProductDetailModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+  <div class="bg-white w-full max-w-2xl max-h-[90vh] rounded-t-3xl sm:rounded-3xl overflow-hidden flex flex-col shadow-2xl">
+    <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 bg-brand-navy text-white">
+      <span class="text-xs font-extrabold uppercase tracking-wider text-brand-gold">Product Details</span>
+      <button onclick="closeDcProductModal()" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white font-bold text-sm">✕</button>
+    </div>
+    <div class="overflow-y-auto p-4 sm:p-6 space-y-5 flex-1">
+      <div class="space-y-3">
+        <div class="w-full h-64 sm:h-80 bg-slate-100 rounded-2xl overflow-hidden flex items-center justify-center border border-slate-200 relative">
+          <img id="dcModalMainImg" src="" alt="Product" class="max-h-full max-w-full object-contain transition-all duration-300">
+        </div>
+        <div id="dcModalThumbnails" class="flex gap-2.5 overflow-x-auto no-scrollbar py-1"></div>
+      </div>
+      <div>
+        <span id="dcModalCategory" class="inline-block text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full mb-1.5"></span>
+        <h2 id="dcModalTitle" class="text-lg sm:text-xl font-black text-brand-navy leading-snug"></h2>
+      </div>
+      <div class="flex items-baseline gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+        <span id="dcModalPrice" class="text-2xl font-black text-brand-navy"></span>
+        <span id="dcModalMrp" class="text-sm text-slate-400 line-through font-semibold"></span>
+        <span id="dcModalDiscount" class="text-xs font-extrabold text-green-700 bg-green-100 px-2 py-0.5 rounded-md"></span>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-extrabold uppercase tracking-wider text-slate-500">Description & Specifications</h4>
+        <p id="dcModalDesc" class="text-sm text-slate-700 leading-relaxed whitespace-pre-line bg-white p-3.5 rounded-xl border border-slate-100 shadow-sm"></p>
+      </div>
+    </div>
+    <div class="p-4 border-t border-slate-200 bg-white flex gap-3">
+      <button onclick="closeDcProductModal()" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-700 font-bold text-xs sm:text-sm hover:bg-slate-50">Close</button>
+      <button id="dcModalAddToBagBtn" class="flex-1 gold-gradient text-brand-navy font-black py-3 rounded-xl text-xs sm:text-sm shadow-lg active:scale-95 transition">🛒 Add to Shopping Bag</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openDcProductModal(product) {
+    if (!product) return;
+    const modal = document.getElementById('dcProductDetailModal');
+    const mainImg = document.getElementById('dcModalMainImg');
+    const thumbsContainer = document.getElementById('dcModalThumbnails');
+
+    let images = [];
+    if (Array.isArray(product.images)) {
+      images = product.images;
+    } else if (typeof product.image_url === 'string' && product.image_url.trim()) {
+      images = product.image_url.split(',').map(u => u.trim()).filter(Boolean);
+    } else if (typeof product.images === 'string' && product.images.trim()) {
+      images = product.images.split(',').map(u => u.trim()).filter(Boolean);
+    } else if (product.image) {
+      images = [product.image];
+    }
+
+    mainImg.src = images[0] || 'https://placeholder.com';
+    thumbsContainer.innerHTML = '';
+
+    if (images.length > 1) {
+      images.forEach((imgUrl, idx) => {
+        const thumb = document.createElement('img');
+        thumb.src = imgUrl;
+        thumb.className = `w-16 h-16 object-cover rounded-xl border-2 cursor-pointer flex-shrink-0 transition ${idx === 0 ? 'border-brand-gold scale-105' : 'border-slate-200 opacity-75 hover:opacity-100'}`;
+        thumb.onclick = () => {
+          mainImg.src = imgUrl;
+          Array.from(thumbsContainer.children).forEach(c => c.classList.remove('border-brand-gold', 'scale-105'));
+          thumb.classList.add('border-brand-gold', 'scale-105');
+        };
+        thumbsContainer.appendChild(thumb);
+      });
+    }
+
+    document.getElementById('dcModalTitle').textContent = product.name || product.title || 'Product';
+    document.getElementById('dcModalCategory').textContent = product.category || 'DealCart Special';
+    
+    const price = Number(product.price || product.selling_price || 0);
+    const mrp = Number(product.mrp || price);
+    document.getElementById('dcModalPrice').textContent = '₹' + price;
+    
+    const mrpEl = document.getElementById('dcModalMrp');
+    const discEl = document.getElementById('dcModalDiscount');
+    if (mrp > price) {
+      mrpEl.textContent = '₹' + mrp;
+      const off = Math.round(((mrp - price) / mrp) * 100);
+      discEl.textContent = off + '% OFF';
+      discEl.classList.remove('hidden');
+    } else {
+      mrpEl.textContent = '';
+      discEl.classList.add('hidden');
+    }
+
+    document.getElementById('dcModalDesc').textContent = product.description || product.details || '100% Genuine DealCart verified product. Fast shipping and quality assured.';
+
+    const bagBtn = document.getElementById('dcModalAddToBagBtn');
+    bagBtn.onclick = () => {
+      if (typeof addToBag === 'function') addToBag(product.id);
+      else if (typeof addToCart === 'function') addToCart(product.id);
+      closeDcProductModal();
+    };
+
+    modal.classList.remove('hidden');
+  }
+
+  function closeDcProductModal() {
+    document.getElementById('dcProductDetailModal').classList.add('hidden');
+  }
+
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('button')) return;
+    const card = e.target.closest('#trendingGrid > div, #bestSellerGrid > div, #newArrivalsGrid > div, #searchGrid > div, #wishlistGrid > div');
+    if (!card) return;
+
+    const titleEl = card.querySelector('h3, h4, .font-bold');
+    const productName = titleEl ? titleEl.textContent.trim() : '';
+    const productList = window.allProducts || window.products || (typeof state !== 'undefined' ? state.products : []) || [];
+    
+    const matched = productList.find(p => (p.name || p.title || '').trim() === productName);
+    if (matched) {
+      openDcProductModal(matched);
+    }
+  });
+</script>
+
 </body>
 </html>
