@@ -3754,6 +3754,23 @@
     }
   }, true);
 </script>
+<script>
+  // पुराने अधूरे पॉपअप फ़ंक्शन को असली डेटाबेस डेटा के साथ ओवरराइड करें
+  const _origOpenModal = window.openDcProductModal;
+  window.openDcProductModal = function(prod) {
+    if (window._dcRealProducts && window._dcRealProducts.length > 0 && prod) {
+      const searchImg = prod.image || prod.image_url || '';
+      const realMatch = window._dcRealProducts.find(p => {
+        const allImgs = String(p.image_url || p.images || p.image || '');
+        return (searchImg && allImgs.includes(searchImg)) || (prod.id && p.id === prod.id);
+      });
+      if (realMatch) prod = realMatch;
+    }
+    if (typeof _origOpenModal === 'function') {
+      _origOpenModal(prod);
+    }
+  };
+</script>
 
 </body>
 </html>
