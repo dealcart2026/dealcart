@@ -3676,6 +3676,46 @@
     }
   });
 </script>
+<script>
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('button')) return;
+    const card = e.target.closest('#trendingGrid > div, #bestSellerGrid > div, #newArrivalsGrid > div, #searchGrid > div, #wishlistGrid > div');
+    if (!card) return;
 
+    e.preventDefault();
+    e.stopImmediatePropagation();
+
+    const titleEl = card.querySelector('h3, h4, .font-bold, .line-clamp-2');
+    const productName = titleEl ? titleEl.textContent.trim() : '';
+    const imgEl = card.querySelector('img');
+    const cardImg = imgEl ? imgEl.src : '';
+
+    let foundProduct = null;
+    for (let key in window) {
+      try {
+        const val = window[key];
+        if (Array.isArray(val) && val.length > 0 && typeof val[0] === 'object' && val[0] !== null) {
+          const match = val.find(item => (item.name || item.title || '').trim() === productName);
+          if (match && (match.price || match.selling_price || match.image_url || match.images)) {
+            foundProduct = match;
+            break;
+          }
+        }
+      } catch (err) {}
+    }
+
+    if (foundProduct) {
+      openDcProductModal(foundProduct);
+    } else {
+      openDcProductModal({
+        name: productName,
+        image: cardImg,
+        price: (card.textContent.match(/₹\s?(\d+)/) || [])[1] || 0,
+        description: '100% Genuine DealCart product.'
+      });
+    }
+  }, true);
+</script>
+  
 </body>
 </html>
