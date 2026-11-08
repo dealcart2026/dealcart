@@ -3771,6 +3771,44 @@
     }
   };
 </script>
+<script>
+  // कैपिटल और स्मॉल दोनों लेटर्स (Description, Product Name, Image URL आदि) को सपोर्ट करने वाला फाइनल फिक्स
+  const _finalModalFix = window.openDcProductModal;
+  window.openDcProductModal = function(prod) {
+    if (!prod) return;
+
+    // 1. यदि डेटाबेस से असली ऑब्जेक्ट मिल जाए, तो उसे कार्ड के डेटा के साथ मिलाएं
+    const allItems = (typeof getAllStoreProducts === 'function' ? getAllStoreProducts() : null) || window._dcRealProducts || new Array();
+    if (allItems.length > 0) {
+      const searchImg = (prod.image || prod.image_url || prod['Image URL'] || '').split('?').at(0);
+      const match = allItems.find(p => {
+        const imgs = String(p.image_url || p['Image URL'] || p.images || p.Images || p.image || '');
+        return (searchImg && imgs.includes(searchImg)) || (prod.id && p.id === prod.id);
+      });
+      if (match) prod = Object.assign({}, prod, match);
+    }
+
+    // 2. कैपिटल और स्मॉल अक्षरों वाले सभी संभव कॉलम नामों को सही जगह सेट करें
+    const normalizedProd = Object.assign({}, prod, {
+      name: prod['Product Name'] || prod.Name || prod.name || prod.title || prod.Title || 'Product',
+      category: prod.Category || prod.category || 'DealCart Special',
+      price: prod.Price || prod.price || prod['Selling Price'] || prod.selling_price || 0,
+      mrp: prod.MRP || prod.mrp || prod.Price || prod.price || 0,
+      image_url: prod.Images || prod.images || prod['Image URLs'] || prod['Image URL'] || prod.image_url || prod.image || '',
+      description: prod.Description || prod.description || prod.Details || prod.details || ''
+    });
+
+    if (typeof _finalModalFix === 'function') {
+      _finalModalFix(normalizedProd);
+    }
+
+    // 3. Description को HTML फॉर्मेट (innerHTML) में रेंडर करें ताकि बुलेट पॉइंट्स और लाइनें सही दिखें
+    const descEl = document.getElementById('dcModalDesc');
+    if (descEl && normalizedProd.description) {
+      descEl.innerHTML = normalizedProd.description;
+    }
+  };
+</script>
 
 </body>
 </html>
