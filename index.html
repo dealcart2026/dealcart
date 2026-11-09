@@ -1163,22 +1163,23 @@
       return valid.length ? valid : ['https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'];
     };
     const normalizeProduct = p => ({
-      ...p,
-      id: String(p.id ?? ('DC-' + Date.now())),
-      sku: String(p.sku ?? p.SKU ?? ('SKU-' + Date.now())),
-      name: String(p.name ?? p.title ?? p['Product Name'] ?? 'DealCart Item'),
-      category: String(p.category ?? 'Other'),
-      price: parseMoney(p.price ?? p['Selling Price'] ?? p['selling price']),
-      mrp: parseMoney(p.mrp ?? p['MRP'] ?? p['Compare at Price']),
-      wholesaleCost: parseMoney(p.wholesaleCost ?? p.wholesale ?? p['Wholesale Price']),
-      stock: parseMoney(p.stock ?? p.Stock),
-      images: normalizeImages(p.images ?? p.image_url ?? p.image ?? p['Product Image 1'] ?? p['Image URL']),
-      cod: p.cod !== false && p.cod !== 'false',
-      status: String(p.status ?? 'PUBLISHED').toUpperCase(),
-      productType: p.productType ?? 'OWN',
-      rating: Number(p.rating) || 4.8,
-      ratingCount: Number(p.ratingCount) || 0
-    });
+  ...p,
+  id: String(p.id ?? p.product_id ?? ('DC-' + Date.now())),
+  sku: String(p.sku ?? p.sku ?? ('SKU-' + Date.now())),
+  name: String(p.name ?? p.title ?? p['Product Name'] ?? 'Unnamed Product'),
+  category: String(p.category ?? 'Other'),
+  price: parseMoney(p.price ?? p.selling_price ?? 0),
+  mrp: parseMoney(p.mrp ?? p.mrp ?? 0),
+  wholesaleCost: parseMoney(p.wholesaleCost ?? p.wholesale ?? 0),
+  stock: parseMoney(p.stock ?? p.stock_qty ?? 0),
+  images: normalizeImages(p.images ?? p.image_url ?? p.image ?? p.variant ?? p['Product Image 1']),
+  cod: p.cod !== false && p.cod !== 'false',
+  status: String(p.status ?? 'PUBLISHED').toUpperCase(),
+  productType: p.productType ?? 'OWN',
+  rating: Number(p.rating) || 4.8,
+  ratingCount: Number(p.ratingCount) || 0
+});
+
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
     // DealCart Core Storage Keys
