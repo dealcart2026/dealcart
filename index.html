@@ -1166,10 +1166,25 @@
       if (digits.length > 10) return digits;
       return '91' + digits.slice(-10);
     };
-    // Splits only when the value is clearly a list of URLs, so CDN URLs containing commas stay intact.
-    // A placeholder or branded artwork is never a real product photo: such values are ignored so a
-    // genuine image further down the list still wins and a logo can never masquerade as a photo.
-    const isPlaceholderImage = url => /placehold\.co|placeholder\.com|via\.placeholder|text=DealCart|no[+_ -]?image/i.test(String(url || ''));
+    // Placeholder artwork is never a real product photo, but detection stays narrow: only known
+    // placeholder services and the retired DealCart artwork are ignored, so a genuine file whose
+    // name merely mentions "no image" is still displayed.
+    const isPlaceholderImage = url => /placehold\.co|placeholder\.com|via\.placeholder|dummyimage\.com|text=DealCart|text=No\+Image/i.test(String(url || ''));
+    // Supabase Storage values are frequently stored as a bucket path ("product-images/x.jpg") or a
+    // partial address instead of a full URL. Such a value is completed against the ALREADY
+    // CONFIGURED project, so nothing is re-pointed at another Supabase instance.
+    const toDisplayableImageUrl = raw => {
+      const s = String(raw == null ? '' : raw).trim();
+      if (!s) return '';
+      if (/^data:image\//i.test(s)) return s;
+      if (/^\/\//.test(s)) return 'https:' + s;
+      if (/^https?:\/\//i.test(s)) return s;
+      if (!/^[\w./~%-]+\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(s)) return s;
+      const project = String((typeof appConfig !== 'undefined' && appConfig && appConfig.supabaseUrl) || '').replace(/\/+$/, '');
+      if (!project) return s;
+      if (/^storage\/v1\//i.test(s)) return project + '/' + s;
+      return project + '/storage/v1/object/public/' + s.replace(/^\/+/, '');
+    };
     const isImageUrl = url => {
       const s = String(url || '').trim();
       if (!s || isPlaceholderImage(s)) return false;
@@ -1177,12 +1192,34 @@
       if (/^(https?:)?\/\//i.test(s)) return true;
       return /^[\w./~%-]+\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(s);
     };
-    // Accepts arrays, JSON arrays, comma/pipe/newline lists, {url} objects and single URLs.
-    // A comma is only treated as a separator when every piece is itself a usable image URL.
+    // Pulls a usable address out of a string, a {url}/{publicUrl}/{path} object or a Supabase
+    // getPublicUrl() response, so JSON image columns are not silently discarded.
+    const imageValueToUrl = value => {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'string') return value.trim();
+      if (typeof value !== 'object') return String(value).trim();
+      const nested = (value.data && typeof value.data === 'object') ? value.data : null;
+      const candidates = [
+        value.url, value.src, value.image, value.image_url, value.publicUrl, value.public_url,
+        value.href, value.downloadUrl, value.download_url, value.path, value.name,
+        nested && (nested.publicUrl || nested.public_url || nested.url || nested.path)
+      ];
+      for (let i = 0; i < candidates.length; i++) {
+        if (candidates[i] !== undefined && candidates[i] !== null && String(candidates[i]).trim() !== '') {
+          return String(candidates[i]).trim();
+        }
+      }
+      return '';
+    };
+    // Accepts arrays, JSON arrays, comma/pipe/newline lists, objects and single URLs. Valid entries
+    // are kept even when a neighbouring entry is unusable, so one bad URL can never blank out a
+    // whole gallery.
     const normalizeImages = value => {
       let list = [];
       if (Array.isArray(value)) {
         list = value;
+      } else if (value && typeof value === 'object') {
+        list = Array.isArray(value.data) ? value.data : Object.keys(value).map(k => value[k]);
       } else {
         const str = String(value ?? '').trim();
         if (str) {
@@ -1194,14 +1231,15 @@
           }
           if (!list.length) {
             const parts = str.split(/[,\n|]+/).map(x => x.trim()).filter(Boolean);
-            list = (parts.length > 1 && parts.every(isImageUrl)) ? parts : [str];
+            list = parts.length > 1 ? parts : [str];
           }
         }
       }
       const seen = Object.create(null);
       const valid = list
-        .map(x => (x && typeof x === 'object') ? String(x.url || x.src || x.image || x.image_url || '') : String(x == null ? '' : x))
-        .map(x => x.trim())
+        .map(imageValueToUrl)
+        .map(toDisplayableImageUrl)
+        .map(x => String(x || '').trim())
         .filter(isImageUrl)
         .filter(u => (seen[u] ? false : (seen[u] = true)));
       return valid.length ? valid : [DC_PLACEHOLDER_IMG];
