@@ -1814,7 +1814,8 @@
       const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
       const isWish = wishlist.includes(p.id);
       const isCodAvailable = appConfig.masterCodEnabled && p.cod;
-      const imageUrl = resolveProductImages(p)[0];
+      const gallery = resolveProductImages(p);
+      const imageUrl = gallery[0];
 
       return `
         <div class="bg-white rounded-2xl border border-brand-border p-2.5 md:p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition group relative">
