@@ -39,7 +39,7 @@ const TARGET = process.env.DC_URL || 'https://zuxsqlrh4p.dev.ap-jt.com/';
       const arr = Array.isArray(raw) ? raw : [raw];
       for (let j = 0; j < arr.length; j++) {
         const u = String(arr[j] || '');
-        if (/^https?:\/\//.test(u) && urls.indexOf(u) === -1) urls.push(u);
+        if (/^https?:\/\//.test(u) && !/placehold\.co|text=DealCart/i.test(u) && urls.indexOf(u) === -1) urls.push(u);
       }
     }
     if (urls.length < 2) return { ok: false, reason: 'need two distinct image urls' };
