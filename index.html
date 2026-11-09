@@ -1256,6 +1256,13 @@
         const list = normalizeImages(candidates[i]).filter(u => u !== DC_PLACEHOLDER_IMG);
         if (list.length) return list;
       }
+      // Nothing passed the strict checks. Salvage the first non-placeholder address so a real photo
+      // is still attempted instead of showing "No Image Available" over existing product data.
+      for (let i = 0; i < candidates.length; i++) {
+        const raw = imageValueToUrl(Array.isArray(candidates[i]) ? (candidates[i][0] || '') : candidates[i]);
+        const url = toDisplayableImageUrl(raw);
+        if (url && !isPlaceholderImage(url)) return [url];
+      }
       return [DC_PLACEHOLDER_IMG];
     };
     const productImageAt = (product, index) => {
