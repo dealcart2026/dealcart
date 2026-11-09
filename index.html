@@ -884,6 +884,21 @@
               <p class="text-[11px] text-blue-700">Connected Project: <code class="font-mono">mdobwluczmjtybjmdzvz.supabase.co</code>. Tables are loaded read-first. Existing products and assets are never deleted or overridden without authorization.</p>
             </div>
 
+            <!-- Supabase Connection: anon key entered at runtime, never committed -->
+            <div class="p-3 bg-white border border-brand-border rounded-xl space-y-2">
+              <div class="flex items-center justify-between gap-2">
+                <h4 class="text-xs font-black text-brand-navy">🔌 Supabase Connection</h4>
+                <span id="sbStatusBadge" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">Not configured</span>
+              </div>
+              <p class="text-[10px] text-slate-500">Paste your project's <b>anon/public</b> key. It is kept only in this browser's storage &mdash; never in the source code, GitHub, backups or logs. A service_role/secret key is rejected.</p>
+              <input type="password" id="cfgSupabaseKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Paste anon/public key (blank keeps the saved key)" class="w-full text-xs p-2 rounded-xl border border-brand-border font-mono">
+              <div class="flex gap-2">
+                <button type="button" onclick="saveSupabaseKey()" class="flex-1 bg-brand-navy text-brand-gold font-bold py-2 rounded-xl text-[11px]">Save Key &amp; Test</button>
+                <button type="button" onclick="clearSupabaseKey()" class="px-3 bg-white border border-rose-300 text-rose-600 font-bold py-2 rounded-xl text-[11px]">Clear</button>
+              </div>
+              <p id="sbStatusText" class="text-[10px] text-slate-500"></p>
+            </div>
+
             <button onclick="saveAdminSettings()" class="w-full bg-brand-navy text-brand-gold font-black py-2.5 rounded-xl text-xs uppercase tracking-wider shadow">Save Configurations</button>
 
             <!-- Settings Backup & Restore (does not include products, customers, or orders) -->
@@ -1375,6 +1390,100 @@
       supabaseUrl: 'https://mdobwluczmjtybjmdzvz.supabase.co',
       supabaseKey: '' // Filled via safe admin inputs or env
     };
+
+    // ---------------------------------------------------------------------------
+    // SUPABASE CREDENTIALS — anon/public key only, supplied at runtime.
+    // The project URL is fixed in DEFAULT_CONFIG and is never editable here.
+    // Key resolution order:
+    //   1. window.DC_SUPABASE_ANON_KEY (optional deployment-time injection)
+    //   2. this browser's saved config (Admin -> Settings -> Supabase Connection)
+    // The key is never written to source, never logged, and never included in backups.
+    // ---------------------------------------------------------------------------
+    function decodeJwtPayload(token) {
+      try {
+        const part = String(token || '').split('.')[1];
+        if (!part) return null;
+        const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+        const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+        return JSON.parse(atob(padded));
+      } catch (e) { return null; }
+    }
+
+    // Accept anon JWTs and sb_publishable_* keys; reject service_role / sb_secret_* outright.
+    function classifySupabaseKey(raw) {
+      const key = String(raw || '').trim();
+      if (!key) return { ok: false, reason: 'empty' };
+      if (/^sb_secret_/i.test(key)) return { ok: false, reason: 'service_role' };
+      if (/^sb_publishable_/i.test(key)) return { ok: true, kind: 'publishable' };
+      const payload = decodeJwtPayload(key);
+      if (payload && payload.role === 'anon') return { ok: true, kind: 'anon' };
+      if (payload && payload.role) return { ok: false, reason: 'role:' + payload.role };
+      return { ok: false, reason: 'unrecognised' };
+    }
+
+    function resolveSupabaseKey() {
+      const injected = (typeof window !== 'undefined' && window.DC_SUPABASE_ANON_KEY)
+        ? String(window.DC_SUPABASE_ANON_KEY).trim() : '';
+      if (injected) return injected;
+      return String((appConfig && appConfig.supabaseKey) || '').trim();
+    }
+
+    let _sbClientCache = { url: '', key: '', client: null };
+    function getSupabaseClient() {
+      if (!window.supabase) return null;
+      const url = String((appConfig && appConfig.supabaseUrl) || '').trim();
+      const key = resolveSupabaseKey();
+      if (!url || !key) return null;
+      if (_sbClientCache.client && _sbClientCache.url === url && _sbClientCache.key === key) {
+        return _sbClientCache.client;
+      }
+      try {
+        const client = window.supabase.createClient(url, key);
+        _sbClientCache = { url, key, client };
+        return client;
+      } catch (e) { return null; }
+    }
+
+    function persistAppConfig() {
+      localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(appConfig));
+    }
+
+    // Merge remote rows into the live catalog without dropping local data.
+    // Only columns the remote row actually supplies are refreshed.
+    function mergeSupabaseProducts(supaItems) {
+      if (!Array.isArray(supaItems) || !supaItems.length) return 0;
+      let applied = 0;
+      supaItems.forEach(item => {
+        const mappedId = String(item.id ?? item.product_id ?? item['Product ID'] ?? item['product id'] ?? '').trim();
+        const mapped = normalizeProduct({ ...item, id: mappedId || item.id || item.product_id });
+        const existingIndex = products.findIndex(p => String(p.id) === mappedId || (p.sku && mapped.sku && p.sku.toLowerCase() === mapped.sku.toLowerCase()));
+        const hasRemote = v => v !== undefined && v !== null && String(v).trim() !== '';
+        if (existingIndex >= 0) {
+          const patch = {};
+          if (hasRemote(item.name) || hasRemote(item.title) || hasRemote(item['Product Name'])) patch.name = mapped.name;
+          if (hasRemote(item.category)) patch.category = mapped.category;
+          if (hasRemote(item.price) || hasRemote(item['Price']) || hasRemote(item['Selling Price'])) patch.price = mapped.price;
+          if (hasRemote(item.mrp) || hasRemote(item.MRP) || hasRemote(item['Compare at Price'])) patch.mrp = mapped.mrp;
+          if (hasRemote(item.wholesale) || hasRemote(item['Wholesale Price'])) patch.wholesaleCost = mapped.wholesaleCost;
+          if (hasRemote(item.stock)) patch.stock = mapped.stock;
+          if (hasRemote(item.images) || hasRemote(item.image_urls) || hasRemote(item['Image URLs']) || hasRemote(item['Product Images']) || hasRemote(item.image_url) || hasRemote(item['Product Image 1']) || hasRemote(item['Image URL'])) patch.images = mapped.images;
+          if (hasRemote(item.description)) patch.description = mapped.description;
+          if (item.cod !== undefined && item.cod !== null) patch.cod = mapped.cod;
+          if (hasRemote(item.status)) patch.status = mapped.status;
+          if (hasRemote(item.productType)) patch.productType = mapped.productType;
+          if (hasRemote(item.supplierId)) patch.supplierId = mapped.supplierId;
+          if (hasRemote(item.rating)) patch.rating = mapped.rating;
+          if (hasRemote(item.ratingCount)) patch.ratingCount = mapped.ratingCount;
+          products[existingIndex] = { ...products[existingIndex], ...patch };
+        } else {
+          products.push(mapped);
+        }
+        applied++;
+      });
+      products = products.map(normalizeProduct);
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+      return applied;
+    }
 
     // State Variables
     let appConfig = { ...DEFAULT_CONFIG };
@@ -3647,6 +3756,7 @@
       $('cfgSellerUpi').value = appConfig.sellerUpi;
       $('cfgCancelWindow').value = String(appConfig.cancelWindowMinutes);
       updateMasterCodButton();
+      renderSupabaseKeyStatus();
     }
 
     function toggleMasterCOD() {
