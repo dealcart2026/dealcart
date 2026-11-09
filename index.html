@@ -1593,49 +1593,17 @@
         products = (savedProd ? JSON.parse(savedProd) : [...SEED_CATALOG]).map(normalizeProduct);
       } catch (e) { products = [...SEED_CATALOG].map(normalizeProduct); }
 
-      // Non-destructive check on Supabase if URL and Key present
-      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+      // Non-destructive check on Supabase when an anon key is configured in this browser
+      const initialSbClient = getSupabaseClient();
+      if (initialSbClient) {
         try {
-          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
-          // Query products gently
-          const { data: supaItems, error } = await client.from('products').select('*');
+          const { data: supaItems, error } = await initialSbClient.from('products').select('*');
           if (error) {
             // A failed read must be visible to the admin instead of silently keeping stale rows.
             window.dcSupabaseError = 'Supabase products read error: ' + (error.message || error.code || 'unknown');
             console.error('Supabase products read error:', error);
           }
-          if (!error && Array.isArray(supaItems) && supaItems.length > 0) {
-            supaItems.forEach(item => {
-              // Keep every column the remote row carries and let normalizeProduct resolve aliases,
-              // so real Supabase values win instead of being dropped by a narrow hand-mapping.
-              const mappedId = String(item.id ?? item.product_id ?? item['Product ID'] ?? item['product id'] ?? '').trim();
-              const mapped = normalizeProduct({ ...item, id: mappedId || item.id || item.product_id });
-              const existingIndex = products.findIndex(p => String(p.id) === mappedId || (p.sku && mapped.sku && p.sku.toLowerCase() === mapped.sku.toLowerCase()));
-              if (existingIndex >= 0) {
-                // Only fields that the remote row actually supplies are refreshed. A column that is
-                // missing remotely must never be replaced by a local default (0 / placeholder image).
-                const hasRemote = v => v !== undefined && v !== null && String(v).trim() !== '';
-                const patch = {};
-                if (hasRemote(item.name) || hasRemote(item.title) || hasRemote(item['Product Name'])) patch.name = mapped.name;
-                if (hasRemote(item.category)) patch.category = mapped.category;
-                if (hasRemote(item.price) || hasRemote(item['Price']) || hasRemote(item['Selling Price'])) patch.price = mapped.price;
-                if (hasRemote(item.mrp) || hasRemote(item.MRP) || hasRemote(item['Compare at Price'])) patch.mrp = mapped.mrp;
-                if (hasRemote(item.wholesale) || hasRemote(item['Wholesale Price'])) patch.wholesaleCost = mapped.wholesaleCost;
-                if (hasRemote(item.stock)) patch.stock = mapped.stock;
-                if (hasRemote(item.images) || hasRemote(item.image_urls) || hasRemote(item['Image URLs']) || hasRemote(item['Product Images']) || hasRemote(item.image_url) || hasRemote(item['Product Image 1']) || hasRemote(item['Image URL'])) patch.images = mapped.images;
-                if (hasRemote(item.description)) patch.description = mapped.description;
-                if (item.cod !== undefined && item.cod !== null) patch.cod = mapped.cod;
-                if (hasRemote(item.status)) patch.status = mapped.status;
-                if (hasRemote(item.productType)) patch.productType = mapped.productType;
-                if (hasRemote(item.supplierId)) patch.supplierId = mapped.supplierId;
-                if (hasRemote(item.rating)) patch.rating = mapped.rating;
-                if (hasRemote(item.ratingCount)) patch.ratingCount = mapped.ratingCount;
-                products[existingIndex] = { ...products[existingIndex], ...patch };
-              } else {
-                products.push(mapped);
-              }
-            });
-          }
+          if (!error) mergeSupabaseProducts(supaItems);
         } catch (e) {
           window.dcSupabaseError = 'Supabase read failed: ' + (e && e.message ? e.message : e);
           console.error('Supabase read sync failed:', e);
@@ -2445,9 +2413,9 @@
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
 
       // 2. Synchronize to Supabase if configured (Non-destructive)
-      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+      if (getSupabaseClient()) {
         try {
-          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
+          const client = getSupabaseClient();
           const { error: orderSyncError } = await client.from('orders').insert([{
             id: orderObj.id,
             customer_name: orderObj.customerName,
@@ -3126,9 +3094,9 @@
 
       // Also persist the catalog record to Supabase when the configured key allows writes,
       // so a product published on the admin device is visible to customers on other devices.
-      if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
+      if (getSupabaseClient()) {
         try {
-          const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
+          const client = getSupabaseClient();
           const { error: productSyncError } = await client.from('products').upsert([{
             id: productObj.id,
             sku: productObj.sku,
