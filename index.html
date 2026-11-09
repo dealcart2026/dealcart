@@ -3786,12 +3786,102 @@
       showToast("Store settings saved successfully!");
     }
 
+    // ---- Supabase connection UI (anon key stays in this browser only) ----
+    function renderSupabaseKeyStatus() {
+      const badge = $('sbStatusBadge');
+      const text = $('sbStatusText');
+      const input = $('cfgSupabaseKey');
+      // Never echo a stored key back into the DOM.
+      if (input) input.value = '';
+      const key = resolveSupabaseKey();
+      const info = key ? classifySupabaseKey(key) : { ok: false, reason: 'empty' };
+      const injected = !!(window.DC_SUPABASE_ANON_KEY && String(window.DC_SUPABASE_ANON_KEY).trim());
+      if (badge) {
+        if (key && info.ok) {
+          badge.textContent = 'Key configured';
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700';
+        } else {
+          badge.textContent = 'Not configured';
+          badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600';
+        }
+      }
+      if (text) {
+        text.textContent = (key && info.ok)
+          ? 'Anon key loaded from ' + (injected ? 'deployment config' : 'this browser') + '. It is never stored in the app source or settings backups.'
+          : 'No anon key saved in this browser yet. Paste your Supabase anon/public key above to enable live product, order and stock sync.';
+      }
+    }
+
+    async function refreshProductsFromSupabase() {
+      const client = getSupabaseClient();
+      if (!client) return { ok: false, reason: 'No anon key configured.' };
+      try {
+        const { data, error } = await client.from('products').select('*');
+        if (error) {
+          window.dcSupabaseError = 'Supabase products read error: ' + (error.message || error.code || 'unknown');
+          return { ok: false, reason: error.message || error.code || 'read-error' };
+        }
+        return { ok: true, count: mergeSupabaseProducts(data) };
+      } catch (e) {
+        window.dcSupabaseError = 'Supabase read failed: ' + ((e && e.message) || e);
+        return { ok: false, reason: (e && e.message) || 'network-error' };
+      }
+    }
+
+    async function saveSupabaseKey() {
+      const input = $('cfgSupabaseKey');
+      const raw = input ? input.value.trim() : '';
+      if (!raw) { showToast('Paste your Supabase anon/public key first.', false); return; }
+      const info = classifySupabaseKey(raw);
+      if (!info.ok) {
+        if (info.reason === 'service_role') {
+          showToast('Rejected: that is a service_role/secret key. Use the anon/public key only.', false);
+        } else if (String(info.reason).indexOf('role:') === 0) {
+          showToast('Rejected: this key\'s role is "' + String(info.reason).slice(5) + '". Only the anon/public key is allowed.', false);
+        } else if (info.reason === 'unrecognised') {
+          showToast('Rejected: this does not look like a Supabase anon/public key.', false);
+        } else {
+          showToast('Could not use that key. Please check it and try again.', false);
+        }
+        return;
+      }
+      appConfig.supabaseKey = raw;
+      persistAppConfig();
+      if (input) input.value = '';
+      renderSupabaseKeyStatus();
+      showToast('Anon key saved in this browser. Testing connection…');
+      const res = await refreshProductsFromSupabase();
+      const text = $('sbStatusText');
+      if (res.ok) {
+        if (text) text.textContent = 'Connected to mdobwluczmjtybjmdzvz.supabase.co — ' + res.count + ' product row(s) read. Catalog refreshed from your project.';
+        showToast('Supabase connected. ' + res.count + ' product row(s) loaded.');
+        if (typeof renderAdminProductsTable === 'function') { try { renderAdminProductsTable(); } catch (e) {} }
+        if (typeof renderHomeView === 'function') { try { renderHomeView(); } catch (e) {} }
+      } else {
+        if (text) text.textContent = 'Key saved, but the read test failed: ' + res.reason + '. Verify anon read access (RLS) on the "products" table.';
+        showToast('Key saved, but the Supabase read test failed.', false);
+      }
+    }
+
+    function clearSupabaseKey() {
+      if (!confirm('Remove the saved Supabase anon key from this browser? Products, orders and settings are not affected.')) return;
+      appConfig.supabaseKey = '';
+      persistAppConfig();
+      _sbClientCache = { url: '', key: '', client: null };
+      renderSupabaseKeyStatus();
+      const text = $('sbStatusText');
+      if (text) text.textContent = 'Anon key cleared from this browser. Live Supabase sync is disabled until a key is saved again.';
+      showToast('Supabase anon key cleared from this browser.');
+    }
+
     function downloadDealCartSettingsBackup() {
       try {
         // Read directly from this browser's current origin storage so the backup
         // captures saved settings, not just the in-memory defaults.
         const rawConfig = localStorage.getItem(STORAGE_KEYS.CONFIG);
         const config = rawConfig ? JSON.parse(rawConfig) : { ...appConfig };
+        // Credentials are never exported: a backup file may be shared or stored loosely.
+        if (config && typeof config === 'object') delete config.supabaseKey;
         const adminHash = localStorage.getItem(STORAGE_KEYS.ADMIN_HASH);
         const backup = {
           format: 'DEALCART_SETTINGS_BACKUP',
@@ -3836,6 +3926,9 @@
         const confirmed = confirm('Restore settings from this backup? Current store configuration and Admin password hash will be replaced by the backup values. Products, customers, and orders will not be changed.');
         if (!confirmed) return;
         const mergedConfig = { ...DEFAULT_CONFIG, ...incomingConfig };
+        // A restored backup must never carry or erase this browser's Supabase key.
+        if (appConfig.supabaseKey) mergedConfig.supabaseKey = appConfig.supabaseKey;
+        else delete mergedConfig.supabaseKey;
         localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(mergedConfig));
         if (typeof backup.settings.adminPasswordHash === 'string' && backup.settings.adminPasswordHash) {
           localStorage.setItem(STORAGE_KEYS.ADMIN_HASH, backup.settings.adminPasswordHash);
