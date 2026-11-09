@@ -1149,36 +1149,73 @@
        1. GLOBAL STATE & ENTERPRISE CONFIGURATION
        ========================================================================= */
     const $ = id => document.getElementById(id);
+    const DC_PLACEHOLDER_IMG = 'https://placehold.co/600x600/F1F5F9/64748B?text=No+Image+Available';
+    // Safely parses "₹599", "1,299.00", "599/-", "Rs 599" and rejects NaN/Infinity.
     const parseMoney = value => {
       if (value === null || value === undefined || value === '') return 0;
-      if (typeof value === 'number' && Number.isFinite(value)) return value;
-      const cleaned = String(value).replace(/₹/g, '').replace(/,/g, '').replace(/\s/g, '').trim();
+      if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+      const cleaned = String(value).replace(/[^0-9.\-]/g, '');
       const num = Number(cleaned);
       return Number.isFinite(num) ? num : 0;
     };
     const ru = n => '₹' + parseMoney(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    // Splits only when the value is clearly a list of URLs, so CDN URLs containing commas stay intact.
     const normalizeImages = value => {
-      const list = Array.isArray(value) ? value : String(value ?? '').split(',');
+      let list = [];
+      if (Array.isArray(value)) {
+        list = value;
+      } else {
+        const str = String(value ?? '').trim();
+        if (str) {
+          const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+          list = (parts.length > 1 && parts.every(u => /^https?:\/\//i.test(u))) ? parts : [str];
+        }
+      }
       const valid = list.map(x => String(x || '').trim()).filter(Boolean);
-      return valid.length ? valid : ['https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'];
+      return valid.length ? valid : [DC_PLACEHOLDER_IMG];
     };
-    const normalizeProduct = p => ({
-  ...p,
-  id: String(p.id ?? p.product_id ?? ('DC-' + Date.now())),
-  sku: String(p.sku ?? p.sku ?? ('SKU-' + Date.now())),
-  name: String(p.name ?? p.title ?? p['Product Name'] ?? 'Unnamed Product'),
-  category: String(p.category ?? 'Other'),
-  price: parseMoney(p.price ?? p.selling_price ?? 0),
-  mrp: parseMoney(p.mrp ?? p.mrp ?? 0),
-  wholesaleCost: parseMoney(p.wholesaleCost ?? p.wholesale ?? 0),
-  stock: parseMoney(p.stock ?? p.stock_qty ?? 0),
-  images: normalizeImages(p.images ?? p.image_url ?? p.image ?? p.variant ?? p['Product Image 1']),
-  cod: p.cod !== false && p.cod !== 'false',
-  status: String(p.status ?? 'PUBLISHED').toUpperCase(),
-  productType: p.productType ?? 'OWN',
-  rating: Number(p.rating) || 4.8,
-  ratingCount: Number(p.ratingCount) || 0
-});
+    // Unique identifiers are only minted when genuinely absent; existing IDs/SKUs are never rewritten.
+    const genProductId = () => {
+      let candidate = '';
+      do {
+        candidate = 'DC-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 7).toUpperCase();
+      } while (Array.isArray(products) && products.some(p => String(p && p.id) === candidate));
+      return candidate;
+    };
+    const genProductSku = name => {
+      const base = String(name || 'ITEM').toUpperCase().replace(/[^A-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 12) || 'ITEM';
+      let candidate = '';
+      do {
+        candidate = base + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+      } while (Array.isArray(products) && products.some(p => String(p && p.sku).toUpperCase() === candidate));
+      return candidate;
+    };
+    const normalizeProduct = p => {
+      const raw = p || {};
+      const existingId = String(raw.id ?? raw.product_id ?? raw['Product ID'] ?? '').trim();
+      const existingSku = String(raw.sku ?? raw.SKU ?? raw['Variant SKU'] ?? '').trim();
+      const name = String(raw.name ?? raw.title ?? raw.Name ?? raw['Product Name'] ?? 'Unnamed Product');
+      const rawStock = Math.floor(parseMoney(raw.stock ?? raw.stock_qty ?? raw.Stock ?? 0));
+      const rawRating = Number(raw.rating);
+      return {
+        ...raw,
+        id: existingId || genProductId(),
+        sku: existingSku || genProductSku(name),
+        name,
+        category: String(raw.category ?? raw.Category ?? 'Other'),
+        price: parseMoney(raw.price ?? raw.selling_price ?? raw['Selling Price'] ?? raw.Price ?? 0),
+        mrp: parseMoney(raw.mrp ?? raw.MRP ?? raw['Compare at Price'] ?? 0),
+        wholesaleCost: parseMoney(raw.wholesaleCost ?? raw.wholesale ?? raw['Wholesale Price'] ?? 0),
+        stock: rawStock > 0 ? rawStock : 0,
+        images: normalizeImages(raw.images ?? raw.image_url ?? raw['Image URLs'] ?? raw['Image URL'] ?? raw.image ?? raw['Product Image 1']),
+        description: String(raw.description ?? raw.Description ?? raw.details ?? raw.Details ?? ''),
+        cod: raw.cod !== false && raw.cod !== 'false',
+        status: String(raw.status ?? 'PUBLISHED').toUpperCase(),
+        productType: raw.productType ?? 'OWN',
+        rating: Number.isFinite(rawRating) && rawRating > 0 ? rawRating : 4.8,
+        ratingCount: Number(raw.ratingCount) || 0
+      };
+    };
 
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
