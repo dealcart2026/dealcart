@@ -1265,6 +1265,10 @@
       }
       return [DC_PLACEHOLDER_IMG];
     };
+    // Same priority order as resolveProductImages, but never returns the placeholder: an empty
+    // list honestly means "this record stores no photo", so the placeholder is never persisted
+    // into product data and can never mask a real image later.
+    const realProductImages = product => resolveProductImages(product).filter(u => u !== DC_PLACEHOLDER_IMG);
     const productImageAt = (product, index) => {
       const list = resolveProductImages(product);
       const i = Math.max(0, Math.floor(Number(index) || 0));
@@ -1308,26 +1312,39 @@
     };
     const normalizeProduct = p => {
       const raw = p || {};
-      const existingId = String(raw.id ?? raw.product_id ?? raw['Product ID'] ?? '').trim();
-      const existingSku = String(raw.sku ?? raw.SKU ?? raw['Variant SKU'] ?? '').trim();
-      const name = String(raw.name ?? raw.title ?? raw.Name ?? raw['Product Name'] ?? 'Unnamed Product');
-      const rawStock = Math.floor(parseMoney(raw.stock ?? raw.stock_qty ?? raw.Stock ?? 0));
+      // First non-empty value wins, so a real remote/local column always beats a blank alias.
+      const pickText = (...vals) => {
+        for (const v of vals) {
+          if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+        }
+        return '';
+      };
+      const existingId = pickText(raw.id, raw.product_id, raw['Product ID'], raw['product id']);
+      const existingSku = pickText(raw.sku, raw.SKU, raw['Variant SKU'], raw['Product Code'], raw.product_code, raw.code);
+      // A stored placeholder name must never beat a real SKU/ID, and the literal "Product" is only
+      // kept when the record genuinely carries no identifier at all.
+      const rawName = pickText(raw.name, raw.title, raw.Name, raw['Product Name'], raw.productName, raw.product_name, raw['product name'], raw['Item Name'], raw.item_name);
+      const BOGUS_NAMES = ['product', 'imported product', 'unnamed product', 'new product'];
+      const name = (!rawName || BOGUS_NAMES.includes(rawName.toLowerCase()))
+        ? (existingSku || existingId || rawName || 'Unnamed Product')
+        : rawName;
+      const rawStock = Math.floor(parseMoney(pickText(raw.stock, raw.stock_qty, raw.stockQuantity, raw.quantity, raw.qty, raw.Stock, raw['Stock Qty'], raw.inventory)));
       const rawRating = Number(raw.rating);
       return {
         ...raw,
         id: existingId || genProductId(),
         sku: existingSku || genProductSku(name),
         name,
-        category: String(raw.category ?? raw.Category ?? 'Other'),
-        price: parseMoney(raw.price ?? raw.selling_price ?? raw['Selling Price'] ?? raw.Price ?? 0),
-        mrp: parseMoney(raw.mrp ?? raw.MRP ?? raw['Compare at Price'] ?? 0),
-        wholesaleCost: parseMoney(raw.wholesaleCost ?? raw.wholesale ?? raw['Wholesale Price'] ?? 0),
+        category: pickText(raw.category, raw.Category, raw.category_name, raw.cat, raw['Product Category']) || 'Other',
+        price: parseMoney(pickText(raw.price, raw.selling_price, raw.sellingPrice, raw['Selling Price'], raw['selling price'], raw.Price, raw.sale_price, raw.sp)),
+        mrp: parseMoney(pickText(raw.mrp, raw.MRP, raw['Compare at Price'], raw.compare_at_price, raw.list_price, raw.original_price)),
+        wholesaleCost: parseMoney(pickText(raw.wholesaleCost, raw.wholesale, raw.wholesale_cost, raw['Wholesale Price'], raw.cost)),
         stock: rawStock > 0 ? rawStock : 0,
-        images: resolveProductImages(raw),
-        description: String(raw.description ?? raw.Description ?? raw.details ?? raw.Details ?? ''),
+        images: realProductImages(raw),
+        description: pickText(raw.description, raw.Description, raw.details, raw.Details, raw.desc, raw.long_description),
         cod: raw.cod !== false && raw.cod !== 'false',
-        status: String(raw.status ?? 'PUBLISHED').toUpperCase(),
-        productType: raw.productType ?? 'OWN',
+        status: (pickText(raw.status, raw.Status) || 'PUBLISHED').toUpperCase(),
+        productType: pickText(raw.productType, raw.product_type) || 'OWN',
         rating: Number.isFinite(rawRating) && rawRating > 0 ? rawRating : 4.8,
         ratingCount: Number(raw.ratingCount) || 0
       };
@@ -1582,28 +1599,17 @@
           const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
           // Query products gently
           const { data: supaItems, error } = await client.from('products').select('*');
+          if (error) {
+            // A failed read must be visible to the admin instead of silently keeping stale rows.
+            window.dcSupabaseError = 'Supabase products read error: ' + (error.message || error.code || 'unknown');
+            console.error('Supabase products read error:', error);
+          }
           if (!error && Array.isArray(supaItems) && supaItems.length > 0) {
             supaItems.forEach(item => {
-              const mappedId = String(item.id || item['Product ID']);
-              const mapped = normalizeProduct({
-                id: mappedId,
-                sku: item.sku || item.SKU,
-                name: item.name || item['Title'] || item['Product Name'],
-                category: item.category,
-                price: item.price ?? item['Price'] ?? item['Selling Price'],
-                mrp: item.mrp ?? item['Compare at Price'] ?? item['MRP'],
-                wholesaleCost: item.wholesale ?? item['Wholesale Price'],
-                stock: item.stock,
-                image_url: item.image_url || item['Image URL'] || item['Product Image 1'],
-                images: item.images ?? item.image_urls ?? item['Image URLs'] ?? item['Product Images'],
-                description: item.description,
-                cod: item.cod,
-                status: item.status || 'PUBLISHED',
-                productType: item.productType || 'OWN',
-                supplierId: item.supplierId || null,
-                rating: item.rating,
-                ratingCount: item.ratingCount
-              });
+              // Keep every column the remote row carries and let normalizeProduct resolve aliases,
+              // so real Supabase values win instead of being dropped by a narrow hand-mapping.
+              const mappedId = String(item.id ?? item.product_id ?? item['Product ID'] ?? item['product id'] ?? '').trim();
+              const mapped = normalizeProduct({ ...item, id: mappedId || item.id || item.product_id });
               const existingIndex = products.findIndex(p => String(p.id) === mappedId || (p.sku && mapped.sku && p.sku.toLowerCase() === mapped.sku.toLowerCase()));
               if (existingIndex >= 0) {
                 // Only fields that the remote row actually supplies are refreshed. A column that is
@@ -1631,7 +1637,8 @@
             });
           }
         } catch (e) {
-          console.log("Supabase read sync non-destructive notice:", e);
+          window.dcSupabaseError = 'Supabase read failed: ' + (e && e.message ? e.message : e);
+          console.error('Supabase read sync failed:', e);
         }
       }
 
@@ -1899,12 +1906,33 @@
     /* =========================================================================
        9. PRODUCT DETAIL MODAL & PINCODE CHECKER
        ========================================================================= */
-    function openProductDetailModal(prodId) {
-      openDcProductModalById(prodId);
+    // Single entry point for product details. Accepts a product object or an id and always opens
+    // the REAL stored record; no synthetic object, no scraping values out of the card markup.
+    function openProductDetailModal(prodOrId) {
+      const isObject = prodOrId && typeof prodOrId === 'object';
+      const key = isObject ? String(prodOrId.id ?? '') : String(prodOrId ?? '');
+      const found = isObject
+        ? (products.find(p => String(p.id) === key) || prodOrId)
+        : products.find(p => String(p.id) === key);
+      if (!found) {
+        showToast('Product not found', false);
+        return;
+      }
+      const id = String(found.id ?? key);
+      if (!id) {
+        showToast('Product not found', false);
+        return;
+      }
+      openDcProductModalById(id);
     }
 
     function closeProductDetailModal() {
-      $('productDetailModal').classList.add('hidden');
+      // The live detail view is dcProductDetailModal; the older container is closed too so no
+      // stale overlay can trap the page.
+      const legacy = $('productDetailModal');
+      if (legacy) legacy.classList.add('hidden');
+      const current = $('dcProductDetailModal');
+      if (current) current.classList.add('hidden');
     }
 
     function evaluatePincode() {
