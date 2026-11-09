@@ -3024,7 +3024,10 @@
             stock: productObj.stock,
             // All gallery images travel in the existing image_url column (comma separated URLs),
             // so no schema change is needed and existing single-image rows stay readable.
-            image_url: (productObj.images || []).filter(Boolean).join(',') || productObj.images[0],
+            image_url: (function () {
+              const urls = resolveProductImages(productObj).filter(u => u !== DC_PLACEHOLDER_IMG);
+              return urls.length ? urls.join(',') : (productObj.image_url || null);
+            })(),
             description: productObj.description,
             cod: productObj.cod,
             status: productObj.status
