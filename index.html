@@ -3050,7 +3050,12 @@
         mrp,
         wholesaleCost: wholesale,
         stock,
-        images: normalizeImages(rawImgs),
+        images: (function () {
+          // Never persist the neutral placeholder into a product record: store the real URLs, or an
+          // empty list when the product genuinely has no image. Existing values are untouched.
+          const list = normalizeImages(rawImgs).filter(u => u !== DC_PLACEHOLDER_IMG);
+          return list.length ? list : [];
+        })(),
         description: desc,
         cod,
         status: isPub ? 'PUBLISHED' : 'DRAFT',
