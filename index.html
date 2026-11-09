@@ -1847,7 +1847,7 @@
           <!-- Clickable Image & Details -->
           <div onclick="openDcProductModalById('${esc(p.id)}')" class="cursor-pointer">
             <div class="w-full h-36 md:h-44 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center relative mb-2">
-              <img src="${esc(imageUrl)}" alt="${esc(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='${DC_PLACEHOLDER_IMG}';" class="w-full h-full object-contain group-hover:scale-105 transition duration-300">
+              <img src="${esc(imageUrl)}" alt="${esc(p.name)}" loading="lazy" data-dc-try="0" data-dc-gallery="${esc(JSON.stringify(gallery))}" onerror="dcImgFallback(this)" class="w-full h-full object-contain group-hover:scale-105 transition duration-300">
               ${discount > 0 ? `
                 <span class="absolute bottom-1.5 left-1.5 bg-green-700 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow">
                   ${discount}% OFF
