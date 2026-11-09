@@ -1270,6 +1270,26 @@
       const i = Math.max(0, Math.floor(Number(index) || 0));
       return list[Math.min(i, list.length - 1)] || DC_PLACEHOLDER_IMG;
     };
+    // A blocked, expired or missing first photo must not blank the card: try the remaining gallery
+    // URLs in order, then fall back to the neutral placeholder. Existing records are untouched.
+    window.dcImgFallback = function (img) {
+      try {
+        const list = JSON.parse(img.getAttribute('data-dc-gallery') || '[]');
+        let i = Number(img.getAttribute('data-dc-try') || 0) + 1;
+        while (i < list.length) {
+          const next = String(list[i] || '');
+          const step = i;
+          i++;
+          if (next && next !== img.currentSrc) {
+            img.setAttribute('data-dc-try', String(step));
+            img.src = next;
+            return;
+          }
+        }
+      } catch (e) { /* malformed gallery: fall through to the placeholder */ }
+      img.onerror = null;
+      img.src = DC_PLACEHOLDER_IMG;
+    };
     // Unique identifiers are only minted when genuinely absent; existing IDs/SKUs are never rewritten.
     const genProductId = () => {
       let candidate = '';
