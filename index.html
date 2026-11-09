@@ -1159,6 +1159,13 @@
       return Number.isFinite(num) ? num : 0;
     };
     const ru = n => '₹' + parseMoney(n).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    // Normalises an Indian number to wa.me format without ever double-prefixing 91.
+    const waNumber = phone => {
+      const digits = String(phone || '').replace(/\D/g, '');
+      if (!digits) return '';
+      if (digits.length > 10) return digits;
+      return '91' + digits.slice(-10);
+    };
     // Splits only when the value is clearly a list of URLs, so CDN URLs containing commas stay intact.
     const normalizeImages = value => {
       let list = [];
@@ -1489,8 +1496,25 @@
               });
               const existingIndex = products.findIndex(p => String(p.id) === mappedId || (p.sku && mapped.sku && p.sku.toLowerCase() === mapped.sku.toLowerCase()));
               if (existingIndex >= 0) {
-                // Supabase is the shared catalog source: refresh the existing local copy instead of leaving stale price/status/image data.
-                products[existingIndex] = { ...products[existingIndex], ...mapped };
+                // Only fields that the remote row actually supplies are refreshed. A column that is
+                // missing remotely must never be replaced by a local default (0 / placeholder image).
+                const hasRemote = v => v !== undefined && v !== null && String(v).trim() !== '';
+                const patch = {};
+                if (hasRemote(item.name) || hasRemote(item.title) || hasRemote(item['Product Name'])) patch.name = mapped.name;
+                if (hasRemote(item.category)) patch.category = mapped.category;
+                if (hasRemote(item.price) || hasRemote(item['Price']) || hasRemote(item['Selling Price'])) patch.price = mapped.price;
+                if (hasRemote(item.mrp) || hasRemote(item.MRP) || hasRemote(item['Compare at Price'])) patch.mrp = mapped.mrp;
+                if (hasRemote(item.wholesale) || hasRemote(item['Wholesale Price'])) patch.wholesaleCost = mapped.wholesaleCost;
+                if (hasRemote(item.stock)) patch.stock = mapped.stock;
+                if (hasRemote(item.image_url) || hasRemote(item['Product Image 1']) || hasRemote(item['Image URL'])) patch.images = mapped.images;
+                if (hasRemote(item.description)) patch.description = mapped.description;
+                if (item.cod !== undefined && item.cod !== null) patch.cod = mapped.cod;
+                if (hasRemote(item.status)) patch.status = mapped.status;
+                if (hasRemote(item.productType)) patch.productType = mapped.productType;
+                if (hasRemote(item.supplierId)) patch.supplierId = mapped.supplierId;
+                if (hasRemote(item.rating)) patch.rating = mapped.rating;
+                if (hasRemote(item.ratingCount)) patch.ratingCount = mapped.ratingCount;
+                products[existingIndex] = { ...products[existingIndex], ...patch };
               } else {
                 products.push(mapped);
               }
@@ -1828,7 +1852,13 @@
     }
 
     function applyFiltersAndSort() {
-      const query = ($('desktopSearchInput').value || $('mobileSearchInput').value || '').trim().toLowerCase();
+      const desktopQuery = ($('desktopSearchInput').value || '').trim();
+      const mobileQuery = ($('mobileSearchInput').value || '').trim();
+      // Whichever search box the customer actually typed in wins; a stale value in the other
+      // box must never override it.
+      const query = ((window.__dcLastSearch === 'mobileSearchInput'
+        ? (mobileQuery || desktopQuery)
+        : (desktopQuery || mobileQuery)) || '').toLowerCase();
       const cat = $('filterCategory').value;
       const avail = $('filterAvailability').value;
       const sort = $('sortBy').value;
@@ -1861,7 +1891,10 @@
       if (sort === 'NEWEST') list.reverse();
       else if (sort === 'PRICE_LOW') list.sort((a,b) => a.price - b.price);
       else if (sort === 'PRICE_HIGH') list.sort((a,b) => b.price - a.price);
-      else if (sort === 'DISCOUNT') list.sort((a,b) => ((b.mrp - b.price)/b.mrp) - ((a.mrp - a.price)/a.mrp));
+      else if (sort === 'DISCOUNT') {
+        const discountRatio = p => (p.mrp > 0 && p.mrp > p.price) ? (p.mrp - p.price) / p.mrp : 0;
+        list.sort((a, b) => discountRatio(b) - discountRatio(a));
+      }
 
       $('searchResultsTitle').textContent = query ? `Results for "${query}"` : (cat !== 'ALL' ? cat : 'All Products');
       $('searchResultsCount').textContent = `${list.length} items`;
@@ -2172,8 +2205,17 @@
       const street = $('shipStreet').value.trim();
       const utr = $('orderUtrInput').value.trim();
 
-      if (!name || phone.length < 10 || !pin || !house || !street) {
+      const phoneDigits = String(phone || '').replace(/\D/g, '');
+      if (!name || !phone || !pin || !house || !street) {
         showToast("Please fill all required delivery fields", false);
+        return;
+      }
+      if (!/^[6-9]\d{9}$/.test(phoneDigits.slice(-10)) || phoneDigits.length < 10) {
+        showToast("Please enter a valid 10-digit mobile number", false);
+        return;
+      }
+      if (!/^\d{6}$/.test(String(pin))) {
+        showToast("Please enter a valid 6-digit pincode", false);
         return;
       }
 
@@ -2193,6 +2235,23 @@
         customerProfile.addresses.unshift({ house, street, city, pincode: pin });
       }
       localStorage.setItem(STORAGE_KEYS.CUSTOMER_PROFILE, JSON.stringify(customerProfile));
+
+      if (selectedPayMethod !== 'COD' && !/^[A-Za-z0-9]{6,30}$/.test(String(utr || ''))) {
+        showToast("Please enter a valid UTR / transaction reference (6-30 letters or digits)", false);
+        return;
+      }
+
+      // Refuse the order when requested quantity exceeds available stock.
+      const stockShortfall = cart.find(item => {
+        const prod = products.find(p => String(p.id) === String(item.id));
+        if (!prod) return true;
+        const available = Math.max(0, Math.floor(Number(prod.stock) || 0));
+        return available < Math.max(1, Math.floor(Number(item.qty) || 1));
+      });
+      if (stockShortfall) {
+        showToast("Not enough stock available for " + (stockShortfall.name || "this product"), false);
+        return;
+      }
 
       // Build Order Object
       const orderObj = {
@@ -2227,11 +2286,22 @@
       orders.unshift(orderObj);
       localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
 
+      // 1b. Reduce stock by the ordered quantity. Existing stock values are only decreased,
+      // never reset, and never allowed to go below zero.
+      orderObj.items.forEach(item => {
+        const prod = products.find(p => String(p.id) === String(item.id));
+        if (!prod) return;
+        const qty = Math.max(0, Math.floor(Number(item.qty) || 0));
+        if (qty <= 0) return;
+        prod.stock = Math.max(0, Math.floor(Number(prod.stock) || 0) - qty);
+      });
+      localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
+
       // 2. Synchronize to Supabase if configured (Non-destructive)
       if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
         try {
           const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
-          await client.from('orders').insert([{
+          const { error: orderSyncError } = await client.from('orders').insert([{
             id: orderObj.id,
             customer_name: orderObj.customerName,
             customer_phone: orderObj.customerPhone,
@@ -2242,8 +2312,13 @@
             items_json: JSON.stringify(orderObj.items),
             created_at: timestamp
           }]);
+          if (orderSyncError) {
+            console.error('Supabase order sync failed:', orderSyncError);
+            showToast('Order saved locally, but cloud sync failed: ' + (orderSyncError.message || 'unknown error'), false);
+          }
         } catch (e) {
-          console.log("Supabase order sync logged locally:", e);
+          console.error("Supabase order sync failed:", e);
+          showToast('Order saved locally, but cloud sync failed.', false);
         }
       }
 
@@ -2266,7 +2341,7 @@
       
       const supWa = $('supportWhatsAppBtn');
       const waMsg = encodeURIComponent("Hello DealCart Support, I have an inquiry about my recent order.");
-      supWa.href = `https://wa.me/91${appConfig.sellerPhone.replace(/\D/g,'')}?text=${waMsg}`;
+      supWa.href = `https://wa.me/${waNumber(appConfig.sellerPhone)}?text=${waMsg}`;
 
       renderAccountOrdersList();
       renderAccountAddressesList();
@@ -2355,7 +2430,7 @@
                 <button onclick="reorderItems('${ord.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs">
                   ↻ Reorder
                 </button>
-                <a href="https://wa.me/91${appConfig.sellerPhone.replace(/\D/g,'')}?text=${encodeURIComponent('Inquiry regarding Order #' + ord.id)}" target="_blank" class="bg-green-100 text-green-800 font-bold px-3 py-1.5 rounded-lg text-xs">
+                <a href="https://wa.me/${waNumber(appConfig.sellerPhone)}?text=${encodeURIComponent('Inquiry regarding Order #' + ord.id)}" target="_blank" class="bg-green-100 text-green-800 font-bold px-3 py-1.5 rounded-lg text-xs">
                   WhatsApp Support
                 </a>
               </div>
@@ -2536,14 +2611,22 @@
       let totalSupplierDues = 0;
       orders.forEach(o => {
         if (o.orderStatus !== 'Cancelled') {
-          o.items.forEach(it => {
-            totalWholesale += (it.wholesaleCost || 0) * it.qty;
+          (o.items || []).forEach(it => {
+            const lineWholesale = (it.wholesaleCost || 0) * (it.qty || 0);
+            totalWholesale += lineWholesale;
+            const linkedProduct = products.find(p => String(p.id) === String(it.id));
+            const isSupplierItem = !!it.supplierId || (linkedProduct && linkedProduct.productType === 'SUPPLIER');
+            if (isSupplierItem) {
+              const ledger = (o.supplierOrders || []).find(s => String(s.productId) === String(it.id));
+              if (!ledger || !ledger.supplierPaid) totalSupplierDues += lineWholesale;
+            }
           });
         }
       });
 
       const totalRecordedExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-      const estimatedProfit = Math.max(0, totalSales - totalWholesale - totalRecordedExpenses);
+      // Real profit: a genuine loss must stay visible instead of being floored at zero.
+      const estimatedProfit = totalSales - totalWholesale - totalRecordedExpenses;
 
       $('statTotalSales').textContent = ru(totalSales);
       $('statTotalProfit').textContent = ru(estimatedProfit);
@@ -2657,7 +2740,7 @@
             </span>
           </td>
           <td class="p-3">
-            <div class="font-black text-brand-navy">${ru(price)}</div>
+            <div class="font-black text-brand-navy">${ru(p.price)}</div>
             <div class="text-[10px] text-slate-400">Wholesale: ${ru(p.wholesaleCost || 0)}</div>
           </td>
           <td class="p-3">
@@ -2824,6 +2907,10 @@
       const id = $('editProdId').value || ('DC-' + Date.now());
       const name = $('editProdName').value.trim();
       const sku = $('editProdSku').value.trim();
+      if (sku && products.some(p => String(p.sku || '').toLowerCase() === sku.toLowerCase() && String(p.id) !== String(id))) {
+        showToast('SKU ' + sku + ' is already used by another product. Please use a unique SKU.', false);
+        return;
+      }
       const cat = $('editProdCat').value;
       const price = parseMoney($('editProdPrice').value);
       const mrp = parseMoney($('editProdMrp').value || price);
@@ -2881,7 +2968,7 @@
       if (window.supabase && appConfig.supabaseUrl && appConfig.supabaseKey) {
         try {
           const client = window.supabase.createClient(appConfig.supabaseUrl, appConfig.supabaseKey);
-          await client.from('products').upsert([{
+          const { error: productSyncError } = await client.from('products').upsert([{
             id: productObj.id,
             sku: productObj.sku,
             name: productObj.name,
@@ -2890,13 +2977,20 @@
             mrp: productObj.mrp,
             wholesale: productObj.wholesaleCost,
             stock: productObj.stock,
-            image_url: productObj.images[0],
+            // All gallery images travel in the existing image_url column (comma separated URLs),
+            // so no schema change is needed and existing single-image rows stay readable.
+            image_url: (productObj.images || []).filter(Boolean).join(',') || productObj.images[0],
             description: productObj.description,
             cod: productObj.cod,
             status: productObj.status
           }], { onConflict: 'id' });
+          if (productSyncError) {
+            console.error('Supabase product sync failed:', productSyncError);
+            showToast('Product saved locally, but cloud sync failed: ' + (productSyncError.message || 'unknown error'), false);
+          }
         } catch (e) {
-          console.log('Supabase product sync logged locally:', e);
+          console.error('Supabase product sync failed:', e);
+          showToast('Product saved locally, but cloud sync failed.', false);
         }
       }
     }
@@ -2972,7 +3066,7 @@
           category: row.category || 'Other',
           price: Number(row['selling price'] || row.price || 299),
           mrp: Number(row.mrp || 599),
-          wholesaleCost: Number(row['wholesale price'] || row.wholesale || 0),
+          wholesaleCost: parseMoney(row['wholesale price'] || row.wholesale),
           stock: Number(row.stock || 25),
           images: [row['image url'] || row.image || 'https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'],
           description: row.description || 'Imported via DealCart bulk engine.',
@@ -3003,10 +3097,14 @@
       tbody.innerHTML = parsedCsvRows.map((r, idx) => {
         const sku = r.sku || 'SKU-' + (idx + 1);
         const name = r['product name'] || r.title || 'Untitled';
-        const price = r['selling price'] || r.price || 0;
-        const wholesale = r['wholesale price'] || r.wholesale || 0;
+        const price = parseMoney(r['selling price'] || r.price || '');
+        const priceInvalid = !(Number.isFinite(price) && price > 0);
+        const wholesale = parseMoney(r['wholesale price'] || r.wholesale || '');
         const img = r['image url'] || r.image || '';
-        const isDuplicate = products.some(p => p.sku.toLowerCase() === sku.toLowerCase());
+        const nameKey = String(name).trim().toLowerCase();
+        const isDuplicate = products.some(p =>
+          String(p.sku || '').toLowerCase() === String(sku || '').toLowerCase() ||
+          String(p.name || '').trim().toLowerCase() === nameKey);
 
         return `
           <tr id="reviewRow_${idx}" class="hover:bg-slate-50 text-xs">
@@ -3018,7 +3116,7 @@
             <td class="p-2 font-black">${ru(price)}</td>
             <td class="p-2 text-slate-500">${ru(wholesale)}</td>
             <td class="p-2">
-              ${isDuplicate ? '<span class="text-rose-600 font-bold bg-rose-50 px-1 rounded">⚠️ Duplicate SKU</span>' : '<span class="text-green-700 font-bold">✓ Ready</span>'}
+              ${isDuplicate ? '<span class="text-rose-600 font-bold bg-rose-50 px-1 rounded">⚠️ Duplicate Product</span>' : (priceInvalid ? '<span class="text-rose-600 font-bold bg-rose-50 px-1 rounded">⚠️ Invalid Price</span>' : '<span class="text-green-700 font-bold">✓ Ready</span>')}
             </td>
             <td class="p-2">
               <button onclick="removeReviewRow(${idx})" class="text-rose-600 hover:underline font-bold">Remove</button>
@@ -3176,7 +3274,7 @@
                         Wholesaler: ${esc(sup.name)}
                       </span>
                       ${sup.phone ? `
-                        <a href="https://wa.me/91${sup.phone.replace(/\D/g,'')}?text=${encodeURIComponent('DealCart Wholesale Order for SKU: ' + it.sku + ' x' + it.qty + ' - Delivery Address: ' + o.address)}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] px-2.5 py-1 rounded shadow">
+                        <a href="https://wa.me/${waNumber(sup.phone)}?text=${encodeURIComponent('DealCart Wholesale Order for SKU: ' + it.sku + ' x' + it.qty + ' - Delivery Address: ' + o.address)}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white font-bold text-[10px] px-2.5 py-1 rounded shadow">
                           💬 Supplier WhatsApp
                         </a>
                       ` : ''}
@@ -3502,9 +3600,17 @@
        21. BOOTSTRAP APP
        ========================================================================= */
     window.addEventListener('DOMContentLoaded', async () => {
-      await initAdminSecurity();
-      setupPwaManifest();
-      await loadInitialData();
+      try {
+        await initAdminSecurity();
+      } catch (e) {
+        console.warn('Admin security init skipped:', e);
+      }
+      try {
+        setupPwaManifest();
+        await loadInitialData();
+      } catch (e) {
+        console.warn('Initial data load error:', e);
+      }
       populateFilterCategoriesDropdown();
       renderHomeView();
 
@@ -3752,6 +3858,11 @@
     closeProduct();
     try { if (typeof navigateTo === 'function') navigateTo('checkout'); } catch (e) {}
   };
+
+  ['desktopSearchInput', 'mobileSearchInput'].forEach(function (id) {
+    var el = byId(id);
+    if (el) el.addEventListener('input', function () { window.__dcLastSearch = id; });
+  });
 
   var wrapEl = byId('dcModalImgWrap');
   if (wrapEl) {
