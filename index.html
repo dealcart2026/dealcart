@@ -1167,6 +1167,18 @@
       return '91' + digits.slice(-10);
     };
     // Splits only when the value is clearly a list of URLs, so CDN URLs containing commas stay intact.
+    // A placeholder or branded artwork is never a real product photo: such values are ignored so a
+    // genuine image further down the list still wins and a logo can never masquerade as a photo.
+    const isPlaceholderImage = url => /placehold\.co|placeholder\.com|via\.placeholder|text=DealCart|no[+_ -]?image/i.test(String(url || ''));
+    const isImageUrl = url => {
+      const s = String(url || '').trim();
+      if (!s || isPlaceholderImage(s)) return false;
+      if (/^data:image\//i.test(s)) return true;
+      if (/^(https?:)?\/\//i.test(s)) return true;
+      return /^[\w./~%-]+\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(s);
+    };
+    // Accepts arrays, JSON arrays, comma/pipe/newline lists, {url} objects and single URLs.
+    // A comma is only treated as a separator when every piece is itself a usable image URL.
     const normalizeImages = value => {
       let list = [];
       if (Array.isArray(value)) {
@@ -1174,12 +1186,44 @@
       } else {
         const str = String(value ?? '').trim();
         if (str) {
-          const parts = str.split(',').map(s => s.trim()).filter(Boolean);
-          list = (parts.length > 1 && parts.every(u => /^https?:\/\//i.test(u))) ? parts : [str];
+          if (/^\[.*\]$/.test(str)) {
+            try {
+              const parsed = JSON.parse(str);
+              if (Array.isArray(parsed)) list = parsed;
+            } catch (e) { list = []; }
+          }
+          if (!list.length) {
+            const parts = str.split(/[,\n|]+/).map(x => x.trim()).filter(Boolean);
+            list = (parts.length > 1 && parts.every(isImageUrl)) ? parts : [str];
+          }
         }
       }
-      const valid = list.map(x => String(x || '').trim()).filter(Boolean);
+      const seen = Object.create(null);
+      const valid = list
+        .map(x => (x && typeof x === 'object') ? String(x.url || x.src || x.image || x.image_url || '') : String(x == null ? '' : x))
+        .map(x => x.trim())
+        .filter(isImageUrl)
+        .filter(u => (seen[u] ? false : (seen[u] = true)));
       return valid.length ? valid : [DC_PLACEHOLDER_IMG];
+    };
+    // Reads every image column DealCart / Supabase may carry, in priority order.
+    const resolveProductImages = product => {
+      const p = product || {};
+      const candidates = [];
+      const push = v => { if (v !== undefined && v !== null && String(v).trim() !== '') candidates.push(v); };
+      push(p.images); push(p.image_urls); push(p['Image URLs']); push(p.image_url);
+      push(p['Image URL']); push(p.image); push(p.thumbnail); push(p.thumb); push(p.photo);
+      for (let i = 1; i <= 6; i++) push(p['Product Image ' + i]);
+      for (let i = 0; i < candidates.length; i++) {
+        const list = normalizeImages(candidates[i]).filter(u => u !== DC_PLACEHOLDER_IMG);
+        if (list.length) return list;
+      }
+      return [DC_PLACEHOLDER_IMG];
+    };
+    const productImageAt = (product, index) => {
+      const list = resolveProductImages(product);
+      const i = Math.max(0, Math.floor(Number(index) || 0));
+      return list[Math.min(i, list.length - 1)] || DC_PLACEHOLDER_IMG;
     };
     // Unique identifiers are only minted when genuinely absent; existing IDs/SKUs are never rewritten.
     const genProductId = () => {
@@ -1214,7 +1258,7 @@
         mrp: parseMoney(raw.mrp ?? raw.MRP ?? raw['Compare at Price'] ?? 0),
         wholesaleCost: parseMoney(raw.wholesaleCost ?? raw.wholesale ?? raw['Wholesale Price'] ?? 0),
         stock: rawStock > 0 ? rawStock : 0,
-        images: normalizeImages(raw.images ?? raw.image_url ?? raw['Image URLs'] ?? raw['Image URL'] ?? raw.image ?? raw['Product Image 1']),
+        images: resolveProductImages(raw),
         description: String(raw.description ?? raw.Description ?? raw.details ?? raw.Details ?? ''),
         cod: raw.cod !== false && raw.cod !== 'false',
         status: String(raw.status ?? 'PUBLISHED').toUpperCase(),
@@ -1485,7 +1529,8 @@
                 mrp: item.mrp ?? item['Compare at Price'] ?? item['MRP'],
                 wholesaleCost: item.wholesale ?? item['Wholesale Price'],
                 stock: item.stock,
-                image_url: item.image_url || item['Product Image 1'] || item['Image URL'],
+                image_url: item.image_url || item['Image URL'] || item['Product Image 1'],
+                images: item.images ?? item.image_urls ?? item['Image URLs'] ?? item['Product Images'],
                 description: item.description,
                 cod: item.cod,
                 status: item.status || 'PUBLISHED',
@@ -1506,7 +1551,7 @@
                 if (hasRemote(item.mrp) || hasRemote(item.MRP) || hasRemote(item['Compare at Price'])) patch.mrp = mapped.mrp;
                 if (hasRemote(item.wholesale) || hasRemote(item['Wholesale Price'])) patch.wholesaleCost = mapped.wholesaleCost;
                 if (hasRemote(item.stock)) patch.stock = mapped.stock;
-                if (hasRemote(item.image_url) || hasRemote(item['Product Image 1']) || hasRemote(item['Image URL'])) patch.images = mapped.images;
+                if (hasRemote(item.images) || hasRemote(item.image_urls) || hasRemote(item['Image URLs']) || hasRemote(item['Product Images']) || hasRemote(item.image_url) || hasRemote(item['Product Image 1']) || hasRemote(item['Image URL'])) patch.images = mapped.images;
                 if (hasRemote(item.description)) patch.description = mapped.description;
                 if (item.cod !== undefined && item.cod !== null) patch.cod = mapped.cod;
                 if (hasRemote(item.status)) patch.status = mapped.status;
@@ -1724,7 +1769,7 @@
       const discount = mrp > price && mrp > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
       const isWish = wishlist.includes(p.id);
       const isCodAvailable = appConfig.masterCodEnabled && p.cod;
-      const imageUrl = normalizeImages(p.images)[0];
+      const imageUrl = resolveProductImages(p)[0];
 
       return `
         <div class="bg-white rounded-2xl border border-brand-border p-2.5 md:p-3 flex flex-col justify-between shadow-sm hover:shadow-md transition group relative">
@@ -1736,7 +1781,7 @@
           <!-- Clickable Image & Details -->
           <div onclick="openDcProductModalById('${esc(p.id)}')" class="cursor-pointer">
             <div class="w-full h-36 md:h-44 bg-slate-50 rounded-xl overflow-hidden flex items-center justify-center relative mb-2">
-              <img src="${esc(imageUrl)}" alt="${esc(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='https://placehold.co/600x600/0A192F/D4AF37?text=DealCart';" class="w-full h-full object-contain group-hover:scale-105 transition duration-300">
+              <img src="${esc(imageUrl)}" alt="${esc(p.name)}" loading="lazy" onerror="this.onerror=null;this.src='${DC_PLACEHOLDER_IMG}';" class="w-full h-full object-contain group-hover:scale-105 transition duration-300">
               ${discount > 0 ? `
                 <span class="absolute bottom-1.5 left-1.5 bg-green-700 text-white font-black text-[9px] px-1.5 py-0.5 rounded shadow">
                   ${discount}% OFF
@@ -2013,7 +2058,7 @@
 
       container.innerHTML = cart.map((item, idx) => `
         <div class="bg-white p-3.5 rounded-2xl border border-brand-border flex gap-3 items-center shadow-sm">
-          <img src="${esc(item.images[0])}" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl bg-slate-50 border p-1 shrink-0">
+          <img src="${esc(productImageAt(item, 0))}" class="w-16 h-16 md:w-20 md:h-20 object-contain rounded-xl bg-slate-50 border p-1 shrink-0">
           <div class="flex-1 min-w-0">
             <h4 class="text-xs md:text-sm font-bold text-slate-800 truncate">${esc(item.name)}</h4>
             <div class="text-[10px] text-slate-400 font-bold uppercase mt-0.5">SKU: ${esc(item.sku)}</div>
@@ -2396,7 +2441,7 @@
             <div class="space-y-1.5">
               ${ord.items.map(it => `
                 <div class="flex items-center gap-2 text-xs">
-                  <img src="${esc(it.images[0])}" class="w-10 h-10 object-contain rounded bg-slate-50 border p-0.5">
+                  <img src="${esc(productImageAt(it, 0))}" class="w-10 h-10 object-contain rounded bg-slate-50 border p-0.5">
                   <div class="flex-1 min-w-0">
                     <div class="font-bold text-slate-800 truncate">${esc(it.name)}</div>
                     <div class="text-[10px] text-slate-400">${ru(it.price)} × ${it.qty}</div>
@@ -2727,7 +2772,7 @@
             <input type="checkbox" ${selectedProductIds.has(p.id) ? 'checked' : ''} onchange="toggleSelectProduct('${p.id}', this.checked)">
           </td>
           <td class="p-3 flex items-center gap-2">
-            <img src="${esc(p.images[0])}" class="w-10 h-10 object-contain rounded bg-slate-100 border p-0.5 shrink-0">
+            <img src="${esc(productImageAt(p, 0))}" class="w-10 h-10 object-contain rounded bg-slate-100 border p-0.5 shrink-0">
             <div>
               <div class="font-bold text-slate-800 line-clamp-1">${esc(p.name)}</div>
               <div class="text-[10px] text-slate-400 font-medium">${esc(p.category)}</div>
@@ -3068,7 +3113,7 @@
           mrp: Number(row.mrp || 599),
           wholesaleCost: parseMoney(row['wholesale price'] || row.wholesale),
           stock: Number(row.stock || 25),
-          images: [row['image url'] || row.image || 'https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'],
+          images: normalizeImages(row['image url'] || row['image urls'] || row.image),
           description: row.description || 'Imported via DealCart bulk engine.',
           cod: row.cod !== 'false',
           status: 'DRAFT', // Always DRAFT in Mode 1 for safety
@@ -3149,7 +3194,7 @@
           mrp: Number(row.mrp || 599),
           wholesaleCost: Number(row['wholesale price'] || 0),
           stock: Number(row.stock || 20),
-          images: [row['image url'] || 'https://placehold.co/600x600/0A192F/D4AF37?text=DealCart'],
+          images: normalizeImages(row['image url'] || row['image urls'] || row.image),
           description: row.description || '',
           cod: true,
           status: 'DRAFT',
@@ -3260,7 +3305,7 @@
               return `
                 <div class="bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-xs">
                   <div class="flex items-center gap-2">
-                    <img src="${esc(it.images[0])}" class="w-10 h-10 object-contain rounded bg-white border p-0.5">
+                    <img src="${esc(productImageAt(it, 0))}" class="w-10 h-10 object-contain rounded bg-white border p-0.5">
                     <div>
                       <div class="font-bold text-slate-800">${esc(it.name)} (x${it.qty})</div>
                       <div class="text-[10px] text-slate-500 font-mono">SKU: ${esc(it.sku)} • Wholesale: ${ru(it.wholesaleCost || 0)}</div>
@@ -3744,8 +3789,7 @@
     if (!product) return false;
     currentProductId = String(product.id == null ? '' : product.id);
 
-    var imgs = Array.isArray(product.images) ? product.images.filter(Boolean) : [];
-    if (!imgs.length && product.image) imgs = [product.image];
+    var imgs = (typeof resolveProductImages === 'function') ? resolveProductImages(product) : [];
     galleryImages = imgs.length ? imgs.map(String) : [PLACEHOLDER];
     galleryIndex = 0;
 
