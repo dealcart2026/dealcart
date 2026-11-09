@@ -53,7 +53,14 @@ const TARGET = process.env.DC_URL || 'https://zuxsqlrh4p.dev.ap-jt.com/';
   // 3. Reload and open that product's details
   await page.reload({ waitUntil: 'networkidle', timeout: 45000 });
   await page.waitForSelector('#trendingGrid div.group img', { timeout: 30000 });
-  await page.click('#trendingGrid div.group:first-of-type img');
+  // Open the seeded product's own card (it is not necessarily the first card in the grid)
+  const opened = await page.evaluate((id) => {
+    const el = document.querySelector('div[onclick*="' + id + '"]');
+    if (!el) return false;
+    el.click();
+    return true;
+  }, seeded.id);
+  if (!opened) { await browser.close(); console.log(JSON.stringify(out, null, 2)); process.exit(1); }
   await page.waitForSelector('#dcModalMainImg', { timeout: 15000 });
   await page.waitForTimeout(400);
 
