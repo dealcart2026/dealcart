@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Targeted DealCart product-image fix. Idempotent-safe: fails loudly if source moved."""
+"""Targeted DealCart product-image fix. Fails loudly and writes nothing if source moved."""
 import sys
 
 PATH = 'index.html'
@@ -44,6 +44,7 @@ NEW_NORM = r"""    // A placeholder or branded artwork is never a real product p
       return /^[\w./~%-]+\.(png|jpe?g|webp|gif|avif|svg)(\?.*)?$/i.test(s);
     };
     // Accepts arrays, JSON arrays, comma/pipe/newline lists, {url} objects and single URLs.
+    // A comma is only treated as a separator when every piece is itself a usable image URL.
     const normalizeImages = value => {
       let list = [];
       if (Array.isArray(value)) {
@@ -57,7 +58,10 @@ NEW_NORM = r"""    // A placeholder or branded artwork is never a real product p
               if (Array.isArray(parsed)) list = parsed;
             } catch (e) { list = []; }
           }
-          if (!list.length) list = str.split(/[,\n|]+/).map(x => x.trim()).filter(Boolean);
+          if (!list.length) {
+            const parts = str.split(/[,\n|]+/).map(x => x.trim()).filter(Boolean);
+            list = (parts.length > 1 && parts.every(isImageUrl)) ? parts : [str];
+          }
         }
       }
       const seen = Object.create(null);
@@ -110,8 +114,8 @@ rep(r"""      const imageUrl = normalizeImages(p.images)[0];""",
     r"""      const imageUrl = resolveProductImages(p)[0];""",
     1, 'card image source')
 
-rep(r"""onerror="this.onerror=null;this.src='https://placehold.co/600x600/0A192F/D4AF37?text=DealCart';\"""",
-    r"""onerror="this.onerror=null;this.src='${DC_PLACEHOLDER_IMG}';\"""",
+rep("this.src='https://placehold.co/600x600/0A192F/D4AF37?text=DealCart';",
+    "this.src='${DC_PLACEHOLDER_IMG}';",
     1, 'card onerror fallback')
 
 # 5) Thumbnails: resolve a real URL instead of indexing a possibly-string value.
@@ -150,4 +154,4 @@ rep(r"""    var imgs = Array.isArray(product.images) ? product.images.filter(Boo
 
 open(PATH, 'w', encoding='utf-8').write(src)
 print('\nWrote %s: %d -> %d bytes' % (PATH, orig_len, len(src)))
-print('Remaining branded DealCart image fallbacks: %d' % src.count('text=DealCart'))
+print('Remaining branded DealCart fallbacks: %d' % src.count('text=DealCart'))
