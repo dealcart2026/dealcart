@@ -45,7 +45,7 @@ const TARGET = process.env.DC_URL || 'https://zuxsqlrh4p.dev.ap-jt.com/';
     if (urls.length < 2) return { ok: false, reason: 'need two distinct image urls' };
     list[0].images = [urls[0], urls[1]];
     localStorage.setItem(KEY, JSON.stringify(list));
-    return { ok: true, name: list[0].name, images: list[0].images };
+    return { ok: true, id: list[0].id, name: list[0].name, images: list[0].images };
   });
   out.seed = seeded;
   if (!seeded.ok) { await browser.close(); console.log(JSON.stringify(out, null, 2)); process.exit(1); }
