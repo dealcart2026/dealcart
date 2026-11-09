@@ -2079,22 +2079,30 @@
 
     function addToBag(prodId, qty = 1, ev) {
       if (ev) ev.stopPropagation();
-      const p = products.find(x => x.id === prodId);
-      if (!p) return;
+      // Compare ids as strings: ids arriving from markup/Supabase/localStorage can differ in type.
+      const key = String(prodId ?? '');
+      const raw = products.find(x => String(x.id) === key);
+      if (!raw) {
+        showToast('Product not found', false);
+        return;
+      }
+      const p = normalizeProduct(raw);
+      const stock = Math.max(0, Math.floor(parseMoney(p.stock)));
+      const addQty = Math.max(1, Math.floor(Number(qty) || 1));
 
-      const existing = cart.find(x => x.id === prodId);
+      const existing = cart.find(x => String(x.id) === key);
       if (existing) {
-        if (existing.qty + qty > p.stock) {
-          showToast(`Stock limit reached (Max: ${p.stock})`, false);
+        if (existing.qty + addQty > stock) {
+          showToast(`Stock limit reached (Max: ${stock})`, false);
           return;
         }
-        existing.qty += qty;
+        existing.qty += addQty;
       } else {
-        if (p.stock < 1) {
+        if (stock < 1) {
           showToast("Sorry, this item is out of stock", false);
           return;
         }
-        cart.push({ ...p, qty: 1 });
+        cart.push({ ...p, id: p.id, qty: addQty });
       }
 
       localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
@@ -2852,12 +2860,15 @@
        16. ADMIN PRODUCT MANAGEMENT (ADD, EDIT, ARCHIVE, BULK ACTIONS)
        ========================================================================= */
     function renderAdminProductsTable() {
-      const q = ($('adProductSearchInput').value || '').trim().toLowerCase();
-      const st = $('adProductFilterStatus').value;
+      const searchEl = $('adProductSearchInput');
+      const statusEl = $('adProductFilterStatus');
+      const q = ((searchEl && searchEl.value) || '').trim().toLowerCase();
+      const st = (statusEl && statusEl.value) || 'ALL';
 
-      let list = [...products];
-      if (st !== 'ALL') list = list.filter(p => p.status === st);
-      if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q));
+      // normalizeProduct guarantees string name/sku/status, so the filters below cannot throw.
+      let list = products.map(normalizeProduct);
+      if (st !== 'ALL') list = list.filter(p => String(p.status || 'PUBLISHED').toUpperCase() === st);
+      if (q) list = list.filter(p => `${p.name || ''} ${p.sku || ''} ${p.category || ''}`.toLowerCase().includes(q));
 
       const tbody = $('adProductsTableBody');
       tbody.innerHTML = list.map(p => `
@@ -2868,14 +2879,14 @@
           <td class="p-3 flex items-center gap-2">
             <img src="${esc(productImageAt(p, 0))}" class="w-10 h-10 object-contain rounded bg-slate-100 border p-0.5 shrink-0">
             <div>
-              <div class="font-bold text-slate-800 line-clamp-1">${esc(p.name)}</div>
+              <div class="font-bold text-slate-800 line-clamp-1">${esc(p.name || p.sku || p.id)}</div>
               <div class="text-[10px] text-slate-400 font-medium">${esc(p.category)}</div>
             </div>
           </td>
           <td class="p-3 font-mono font-bold text-slate-600">${esc(p.sku)}</td>
           <td class="p-3">
             <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${p.productType === 'SUPPLIER' ? 'bg-purple-100 text-purple-800' : 'bg-slate-100 text-slate-800'}">
-              ${p.productType}
+              ${esc(p.productType || 'OWN')}
             </span>
           </td>
           <td class="p-3">
@@ -2883,7 +2894,7 @@
             <div class="text-[10px] text-slate-400">Wholesale: ${ru(p.wholesaleCost || 0)}</div>
           </td>
           <td class="p-3">
-            <span class="font-bold ${p.stock < 5 ? 'text-red-600' : 'text-slate-700'}">${p.stock}</span>
+            <span class="font-bold ${p.stock < 5 ? 'text-red-600' : 'text-slate-700'}">${Number(p.stock) || 0}</span>
           </td>
           <td class="p-3">
             <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -2902,6 +2913,12 @@
 
       $('adCountProducts').textContent = products.length;
       updateBulkActionBar();
+
+      // Surface a failed Supabase read/write once per session instead of failing silently.
+      if (window.dcSupabaseError && !renderAdminProductsTable._syncWarned) {
+        renderAdminProductsTable._syncWarned = true;
+        showToast(window.dcSupabaseError, false);
+      }
     }
 
     function toggleSelectProduct(id, checked) {
@@ -3282,33 +3299,55 @@
     function confirmAndExecuteImport() {
       const validRows = parsedCsvRows.filter(Boolean);
       let count = 0;
+      let skipped = 0;
+      const seenSkus = new Set(products.map(p => String(p.sku || '').toUpperCase()).filter(Boolean));
 
       validRows.forEach((row, i) => {
-        const sku = row.sku || ('SKU-' + Date.now() + '-' + i);
-        if (products.some(p => p.sku.toLowerCase() === sku.toLowerCase())) return;
+        const pick = (...keys) => {
+          for (const k of keys) {
+            const v = row[k];
+            if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+          }
+          return '';
+        };
+        // Real values only. A row without a usable name or a positive price is skipped and
+        // reported, instead of being stored as "Product / 299 / 599 / Other".
+        const name = pick('product name', 'productname', 'name', 'title', 'item name', 'item', 'product');
+        const price = parseMoney(pick('selling price', 'sellingprice', 'price', 'sp', 'sale price'));
+        if (!name || !(price > 0)) { skipped++; return; }
 
-        products.unshift({
-          id: 'DC-IMP-' + Math.floor(100000 + Math.random() * 900000),
-          sku: sku,
-          name: row['product name'] || row.title || 'Product',
-          category: row.category || 'Other',
-          price: Number(row['selling price'] || row.price || 299),
-          mrp: Number(row.mrp || 599),
-          wholesaleCost: Number(row['wholesale price'] || 0),
-          stock: Number(row.stock || 20),
-          images: normalizeImages(row['image url'] || row['image urls'] || row.image),
-          description: row.description || '',
+        const mrp = parseMoney(pick('mrp', 'compare at price', 'compareatprice', 'list price', 'original price'));
+        let sku = pick('sku', 'variant sku', 'product code', 'code', 'product id', 'id');
+        if (!sku) sku = genProductSku(name);
+        const skuKey = sku.toUpperCase();
+        if (seenSkus.has(skuKey)) { skipped++; return; }
+        seenSkus.add(skuKey);
+
+        products.unshift(normalizeProduct({
+          ...row,
+          id: '',
+          sku,
+          name,
+          category: pick('category', 'cat', 'type', 'product category') || 'Other',
+          price,
+          mrp,
+          wholesaleCost: pick('wholesale price', 'wholesale', 'cost'),
+          stock: pick('stock', 'qty', 'quantity', 'inventory'),
+          images: normalizeImages(pick('image url', 'image urls', 'image', 'images', 'photo', 'thumbnail')),
+          description: pick('description', 'details', 'desc'),
           cod: true,
           status: 'DRAFT',
-          productType: 'SUPPLIER',
-          rating: 4.8,
-          ratingCount: 0
-        });
+          productType: 'SUPPLIER'
+        }));
         count++;
       });
 
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(products));
-      showToast(`Imported ${count} items successfully!`);
+      if (skipped) {
+        showToast(`Imported ${count} item(s). Skipped ${skipped} row(s) with a missing name/price or duplicate SKU.`, false);
+      } else {
+        showToast(`Imported ${count} items successfully!`);
+      }
       $('csvReviewStage').classList.add('hidden');
       switchAdminTab('products');
     }
